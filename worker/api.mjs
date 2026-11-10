@@ -1,6 +1,6 @@
 import {programs,modules,schedule,eventSeeds} from '../src/data.mjs';
 import {ApiError} from './errors.mjs';
-import {createStore} from './storage/index.mjs';
+import {SupabaseStore} from './storage/supabase.mjs';
 export {ApiError} from './errors.mjs';
 const must=(condition,msg,status=400)=>{if(!condition)throw new ApiError(msg,status)};
 const digest=async value=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value)))).map(x=>x.toString(16).padStart(2,'0')).join('');
@@ -18,7 +18,7 @@ function fields(b){
 }
 export async function handleApi(request,env){
  try{
-  const db=createStore(env),url=new URL(request.url),path=url.pathname.slice(4),method=request.method;
+  const db=new SupabaseStore(env),url=new URL(request.url),path=url.pathname.slice(4),method=request.method;
   if(!['GET','HEAD'].includes(method)){const origin=request.headers.get('origin');must(!origin||origin===url.origin,'Origine de requête non autorisée.',403);must(request.headers.get('content-type')?.includes('application/json'),'Format JSON requis.',415)}
   const owner=request.headers.get('oai-authenticated-user-id')||'private-preview';
   const demoScope='demo:'+await digest(owner);

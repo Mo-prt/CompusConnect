@@ -4,10 +4,9 @@ import fs from 'node:fs/promises';
 import {PGlite} from '@electric-sql/pglite';
 import {handleApi} from '../worker/api.mjs';
 import {SupabaseStore} from '../worker/storage/supabase.mjs';
-import {createStore} from '../worker/storage/index.mjs';
 import {postgrestFixture} from './helpers/postgrest.mjs';
 
-const env={DATA_BACKEND:'supabase',SUPABASE_URL:'https://example.supabase.co/rest/v1/',SUPABASE_SECRET_KEY:'sb_secret_test_only'};
+const env={SUPABASE_URL:'https://example.supabase.co/rest/v1/',SUPABASE_SECRET_KEY:'sb_secret_test_only'};
 let pg,originalFetch,student,organizer;
 async function call(path,method='GET',body,cookie,owner='owner1'){
   const result=await handleApi(new Request('https://campus.test/api'+path,{method,headers:{'Content-Type':'application/json',Origin:'https://campus.test','oai-authenticated-user-id':owner,...(cookie?{Cookie:cookie}:{})},...(body?{body:JSON.stringify(body)}:{})}),env);
@@ -26,9 +25,9 @@ after(async()=>{globalThis.fetch=originalFetch;await pg?.close()});
 test('configuration rejects publishable keys, missing secrets and unsafe project URLs',()=>{
   assert.throws(()=>new SupabaseStore({...env,SUPABASE_SECRET_KEY:'sb_publishable_example'}),/clé serveur/);
   assert.throws(()=>new SupabaseStore({...env,SUPABASE_SECRET_KEY:''}),/clé serveur/);
+  assert.throws(()=>new SupabaseStore({DB:{}}),/clé serveur/);
   assert.throws(()=>new SupabaseStore({...env,SUPABASE_URL:'http://example.supabase.co'}),/HTTPS/);
   assert.throws(()=>new SupabaseStore({...env,SUPABASE_URL:'https://example.supabase.co/other'}),/HTTPS/);
-  assert.throws(()=>createStore({...env,DATA_BACKEND:'invalid'}),/DATA_BACKEND/);
   assert.equal(new SupabaseStore(env).base,'https://example.supabase.co/rest/v1/');
   const anonJwt='header.'+btoa(JSON.stringify({role:'anon'}))+'.signature';
   assert.throws(()=>new SupabaseStore({...env,SUPABASE_SECRET_KEY:anonJwt}),/clé serveur/);
@@ -65,6 +64,30 @@ test('PostgreSQL-backed API preserves demos and bootstrap response shapes',async
   assert.equal(student.data.user.role,'student');assert.equal(organizer.data.user.role,'organizer');
   assert.equal((await call('/auth/me','GET',null,student.cookie)).data.user.id,student.data.user.id);
   assert.equal((await call('/auth/me','GET',null,student.cookie,'other-owner')).data.user,null);
+});
+
+test('anonymous, student and teacher profiles cannot perform organizer actions',async()=>{
+  assert.equal((await call('/events','POST',newEvent())).status,401);
+  assert.equal((await call('/events','POST',newEvent(),student.cookie)).status,403);
+  const teacher=await call('/auth/demo','POST',{role:'teacher'});
+  assert.equal(teacher.status,200);assert.equal(teacher.data.user.role,'teacher');
+  assert.equal((await call('/events','POST',newEvent(),teacher.cookie)).status,403);
+  const created=await call('/events','POST',newEvent(),organizer.cookie);
+  assert.equal(created.status,201);
+  const other=await call('/auth/demo','POST',{role:'organizer'},null,'other-owner');
+  assert.equal((await call('/events/'+created.data.id,'PUT',newEvent(),other.cookie,'other-owner')).status,404);
+});
+
+test('API rejects cross-origin writes, invalid input and duplicate accounts',async()=>{
+  const response=await handleApi(new Request('https://campus.test/api/auth/demo',{
+    method:'POST',headers:{Origin:'https://other.test','Content-Type':'application/json'},body:'{"role":"organizer"}'
+  }),env);
+  assert.equal(response.status,403);
+  assert.equal((await call('/events','POST',newEvent({date:'2026-02-31'}),organizer.cookie)).status,400);
+  assert.equal((await call('/events','POST',newEvent({capacity:0}),organizer.cookie)).status,400);
+  const user={name:'Unique account',email:'unique@example.ma',password:'Password-test-123',program:'SIIA'};
+  assert.equal((await call('/auth/register','POST',user)).status,200);
+  assert.equal((await call('/auth/register','POST',user)).status,409);
 });
 
 test('PostgreSQL accounts hash passwords, enforce roles, filter filiere and update profiles',async()=>{

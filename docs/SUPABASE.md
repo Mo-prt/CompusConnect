@@ -10,7 +10,7 @@ Dans le SQL Editor du projet `https://xbpzhylcrbaklmalmivv.supabase.co`, exécut
 
 La migration est transactionnelle et crée cinq tables, les index, les contraintes et les fonctions RPC. Elle ne supprime aucune table existante. Si le projet possède déjà des tables de même nom dans `public`, vérifier leur schéma avant de l’appliquer : elle échouera plutôt que de remplacer vos données.
 
-Les projets utilisant la CLI Supabase peuvent appliquer le fichier avec `supabase db push` après liaison au bon projet. Les migrations PostgreSQL restent dans `supabase/migrations/`. Les anciennes migrations D1 de `drizzle/` ne doivent pas être exécutées sur Supabase.
+Les projets utilisant la CLI Supabase peuvent appliquer le fichier avec `supabase db push` après liaison au bon projet. Les migrations PostgreSQL restent dans `supabase/migrations/`.
 
 Les filières, modules et emplois du temps de démonstration restent définis dans `src/data.mjs`, comme dans la version initiale.
 
@@ -19,7 +19,6 @@ Les filières, modules et emplois du temps de démonstration restent définis da
 Configurer ces variables dans les paramètres de l’hébergement du Worker :
 
 ```env
-DATA_BACKEND=supabase
 SUPABASE_URL=https://xbpzhylcrbaklmalmivv.supabase.co
 SUPABASE_SECRET_KEY=<votre clé serveur Supabase>
 ```
@@ -52,16 +51,13 @@ La vérification appelle une fonction de lecture sur un périmètre réservé et
 
 Déployer le Worker construit avec les variables serveur ci-dessus. Le fichier `.env` est une aide locale : l’hébergement doit recevoir ses propres variables. Le code seul ne crée pas les tables Supabase et ne configure pas les secrets de production.
 
-## 4. Comportement et compatibilité
+## 4. Fonctionnement
 
-- `DATA_BACKEND=supabase` sélectionne PostgreSQL. La présence de `SUPABASE_URL` sélectionne aussi Supabase si `DATA_BACKEND` est absent.
-- Une configuration Supabase incomplète renvoie une erreur 503 explicite ; elle ne bascule pas silencieusement vers une autre base.
-- `DATA_BACKEND=d1` sélectionne explicitement D1. Sans variables Supabase, les déploiements existants continuent d’utiliser le binding `DB`.
-- `.openai/hosting.json` conserve son binding D1 pour permettre ce fonctionnement existant. Une fois la migration des données validée et le déploiement Supabase vérifié, il peut être mis à `null` pour une installation exclusivement Supabase.
-- Le frontend conserve `registered`, `joined` et `endTime`, les mêmes routes et les mêmes erreurs métier.
-- Les données de démonstration sont insérées de manière idempotente dans le périmètre courant.
+Supabase est l’unique base utilisée par le backend. `SUPABASE_URL` et `SUPABASE_SECRET_KEY` sont obligatoires. Une configuration manquante ou invalide renvoie une erreur 503 explicite.
 
-Les données déjà enregistrées dans D1 ne sont pas transférées automatiquement. Pour les conserver, réaliser un export/import contrôlé dans l’ordre `users`, `events`, `sessions`, `registrations`, `auth_attempts` ; convertir `demo` en booléen et conserver les identifiants, sels, hachages et expirations en millisecondes. Vérifier les comptes et inscriptions avant de changer le backend de production.
+Le manifeste d’hébergement ne déclare aucun binding de base locale. Les fonctions du frontend conservent `registered`, `joined`, `endTime`, les mêmes routes et les mêmes erreurs métier. Les données de démonstration sont insérées de manière idempotente dans le périmètre courant.
+
+Les données d’un ancien déploiement ne sont pas transférées automatiquement. Pour les conserver, réaliser un export/import contrôlé dans l’ordre `users`, `events`, `sessions`, `registrations`, `auth_attempts` ; convertir `demo` en booléen et conserver les identifiants, sels, hachages et expirations en millisecondes.
 
 ## 5. Autorisations et intégrité
 
@@ -73,6 +69,6 @@ La clé serveur contourne RLS : les contrôles du Worker restent donc indispensa
 
 ## 6. Vérifications incluses
 
-Les tests originaux D1 continuent de passer. Les tests Supabase vérifient le transport HTTP, le refus des clés publiques, la migration et les fonctions SQL sur PostgreSQL embarqué (PGlite), les permissions, les profils, les connexions, les sessions, les événements et les inscriptions.
+Les onze scénarios de tests vérifient le transport HTTP, le refus des clés publiques, la migration et les fonctions SQL sur PostgreSQL embarqué (PGlite), les permissions, les profils, les connexions, les sessions, les événements et les inscriptions.
 
 Le transport PostgREST est simulé dans ces tests. Ils ne remplacent pas la commande `check:supabase` et une recette sur votre véritable projet une fois la migration et les secrets configurés.
