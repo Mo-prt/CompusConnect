@@ -24,25 +24,29 @@ L’inscription publique crée exclusivement des étudiants, même si une requê
 
 ## Architecture déployée
 
-Interface HTML/CSS/JavaScript sans dépendance, API REST dans un Worker Cloudflare ES module et base relationnelle D1 (SQLite). La fiche de mission recommande Laravel / MySQL / React ; elle précise que ce choix est recommandé, et que les exigences portent sur l’application web, une base relationnelle et une gestion sécurisée des profils. Ce livrable utilise le runtime natif Sites. Le starter et les helpers Vinext n’étaient pas présents dans l’environnement ; le Worker est construit directement avec le format de déploiement Sites.
+Interface HTML/CSS/JavaScript sans dépendance, API REST dans un Worker Cloudflare ES module, avec base relationnelle Supabase (PostgreSQL) ou D1 (SQLite). La fiche de mission recommande Laravel / MySQL / React ; elle précise que ce choix est recommandé, et que les exigences portent sur l’application web, une base relationnelle et une gestion sécurisée des profils. Ce livrable utilise le runtime natif Sites. Le starter et les helpers Vinext n’étaient pas présents dans l’environnement ; le Worker est construit directement avec le format de déploiement Sites.
 
 - `src/` : interface et données de référence de démonstration.
 - `worker/api.mjs` : authentification, validation, autorisation et opérations métier.
+- `worker/storage/` : adaptateurs Supabase/PostgREST et D1.
+- `supabase/migrations/` : schéma PostgreSQL, RLS et fonctions transactionnelles.
+- [Configuration Supabase](docs/SUPABASE.md) : migration, variables et vérification de connexion.
 - `drizzle/0000_campus.sql` : migration SQL du schéma ; aucune création de table dans les requêtes.
 - `scripts/build.mjs` : construction déterministe des ressources et du Worker.
 - `tests/api.test.mjs` : tests d’API avec une véritable base SQLite en mémoire.
 
 ## Construire et vérifier
 
-Node.js 24, sans installation de dépendance :
+Node.js 24 :
 
 ```sh
+npm ci
 npm test
 npm run build
 node --check dist/server/index.js
 ```
 
-Le résultat de publication se trouve dans `dist/`. `.openai/hosting.json` déclare l’identité du site et le binding D1 `DB`. Le service d’hébergement applique la migration avant d’activer le Worker.
+Le résultat de publication se trouve dans `dist/`. `.openai/hosting.json` déclare l’identité du site et le binding D1 `DB`. En mode D1, le service Sites applique la migration avant d’activer le Worker. En mode Supabase, appliquer préalablement la migration PostgreSQL et configurer les variables serveur selon [le guide Supabase](docs/SUPABASE.md).
 
 ## Contrat API
 
@@ -66,4 +70,6 @@ Codes usuels : 200/201 succès, 400 validation, 401 session absente, 403 droits 
 
 ## Vérification
 
-Huit scénarios automatisés couvrent les profils, les autorisations, les inscriptions et doublons, les participants, le hachage et les connexions, les opérations organisateur, la capacité, le ciblage filière, l’isolation et la déconnexion. Les commandes de syntaxe et de construction sont également vérifiées. La vérification visuelle au navigateur reste à effectuer : l’outil de contrôle navigateur prescrit par Sites n’est pas disponible dans cet environnement.
+Dix-sept scénarios automatisés couvrent D1 et le nouvel adaptateur Supabase, avec exécution des fonctions PostgreSQL dans PGlite : autorisations, mots de passe, sessions, isolation, filtrage filière, capacité, inscriptions, participants et opérations organisateur. Le build assemble les modules serveur et les ressources du frontend avec esbuild.
+
+Les tests Supabase utilisent un transport PostgREST simulé. La connexion au projet réel doit être vérifiée avec `npm run check:supabase` après installation du schéma et configuration de la clé serveur. Aucun secret n’est fourni dans le dépôt.

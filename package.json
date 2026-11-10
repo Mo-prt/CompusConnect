@@ -1,1 +1,17 @@
-{"name":"campusconnect-fpk","private":true,"type":"module","scripts":{"build":"node scripts/build.mjs","test":"node --test tests/*.test.mjs"}}
+{
+  "name": "campusconnect-fpk",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "check:supabase": "node --env-file-if-exists=.env scripts/check-supabase.mjs"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.16",
+    "esbuild": "^0.28.2"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

@@ -4,3 +4,8 @@ dist/
 .wrangler/
 .sites-runtime/
 outputs/
+!.env.example
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+coverage/

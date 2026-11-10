@@ -1,7 +1,17 @@
 import fs from 'node:fs/promises';
-await fs.mkdir('dist/server',{recursive:true});await fs.mkdir('dist/.openai',{recursive:true});
-const html=await fs.readFile('src/index.html','utf8'),css=await fs.readFile('src/style.css','utf8'),js=await fs.readFile('src/app.js','utf8');
-const api=(await fs.readFile('worker/api.mjs','utf8')).replace("import {programs,modules,schedule,eventSeeds} from '../src/data.mjs';",'');
-const data=(await fs.readFile('src/data.mjs','utf8')).replace(/export /g,'');
-const result=`${data}\n${api}\nconst html=${JSON.stringify(html)},css=${JSON.stringify(css)},js=${JSON.stringify(js)};\nexport default {async fetch(request,env){const path=new URL(request.url).pathname;if(path.startsWith('/api/'))return handleApi(request,env);const type=path==='/app.js'?'application/javascript':path==='/style.css'?'text/css':'text/html';return new Response(path==='/app.js'?js:path==='/style.css'?css:html,{headers:{'Content-Type':type+'; charset=utf-8','X-Content-Type-Options':'nosniff','Referrer-Policy':'strict-origin-when-cross-origin','Content-Security-Policy':\"default-src 'self'; img-src 'self' data: https://images.unsplash.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self'; connect-src 'self'; frame-ancestors 'self' https://chatgpt.com https://*.chatgpt.com\"}})}};`;
-await fs.writeFile('dist/server/index.js',result);await fs.copyFile('.openai/hosting.json','dist/.openai/hosting.json');await fs.cp('drizzle','dist/drizzle',{recursive:true});console.log('Built CampusConnect Worker, assets and database migration.');
+import {build} from 'esbuild';
+await fs.mkdir('dist/server',{recursive:true});
+await fs.mkdir('dist/.openai',{recursive:true});
+await build({
+  entryPoints:['worker/index.mjs'],
+  bundle:true,
+  platform:'browser',
+  format:'esm',
+  target:'es2022',
+  outfile:'dist/server/index.js',
+  loader:{'.html':'text','.css':'text','.js':'text'},
+  legalComments:'none',
+});
+await fs.copyFile('.openai/hosting.json','dist/.openai/hosting.json');
+await fs.cp('drizzle','dist/drizzle',{recursive:true});
+console.log('Built CampusConnect Worker with D1 and Supabase adapters.');
