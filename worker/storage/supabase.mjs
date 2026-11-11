@@ -35,9 +35,14 @@ export class SupabaseStore {
     catch { throw new ApiError('Supabase est temporairement inaccessible. Réessayez dans un instant.',503); }
     if (!response.ok) {
       let error={};try{error=await response.json()}catch{}
-      if (error.code==='23505') throw new ApiError('Cette entrée existe déjà.',409);
-      // Never return remote error bodies, SQL, headers or credentials to visitors.
-      throw new ApiError('La requête Supabase a échoué. Vérifiez la configuration et la migration du projet.',502);
+      const failure=error.code==='23505'
+        ? new ApiError('Cette entrée existe déjà.',409)
+        : new ApiError('La requête Supabase a échoué. Vérifiez la configuration et la migration du projet.',502);
+      // Only safe metadata reaches the local connection checker. API responses
+      // remain generic and never include remote SQL, error bodies or credentials.
+      failure.supabaseStatus=response.status;
+      if(typeof error.code==='string' && /^[A-Z0-9_]{1,32}$/.test(error.code)) failure.supabaseCode=error.code;
+      throw failure;
     }
     if (response.status===204) return null;
     const raw=await response.text();

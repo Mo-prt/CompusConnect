@@ -81,6 +81,6 @@ Les filières, modules et emplois du temps sont définis dans `src/data.mjs`. Le
 
 ## Tests
 
-Onze scénarios exécutent la migration et les fonctions PostgreSQL dans PGlite : permissions, configuration, profils, connexions, mots de passe, sessions, isolation, ciblage filière, capacité, doublons, participants et opérations organisateur.
+Les scénarios exécutent la migration et les fonctions PostgreSQL dans PGlite : permissions, configuration, profils, connexions, mots de passe, sessions, isolation, ciblage filière, capacité, doublons, participants et opérations organisateur.
 
 Le transport PostgREST est simulé. La connexion au projet réel reste à vérifier avec `npm run check:supabase` après application de la migration et configuration de la clé serveur.

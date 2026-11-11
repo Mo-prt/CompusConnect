@@ -69,6 +69,31 @@ La clé serveur contourne RLS : les contrôles du Worker restent donc indispensa
 
 ## 6. Vérifications incluses
 
-Les onze scénarios de tests vérifient le transport HTTP, le refus des clés publiques, la migration et les fonctions SQL sur PostgreSQL embarqué (PGlite), les permissions, les profils, les connexions, les sessions, les événements et les inscriptions.
+Les scénarios de tests vérifient le transport HTTP, le refus des clés publiques, la migration et les fonctions SQL sur PostgreSQL embarqué (PGlite), les permissions, les profils, les connexions, les sessions, les événements et les inscriptions.
 
 Le transport PostgREST est simulé dans ces tests. Ils ne remplacent pas la commande `check:supabase` et une recette sur votre véritable projet une fois la migration et les secrets configurés.
+
+## 7. Comprendre une erreur de connexion
+
+`npm run check:supabase` affiche le statut HTTP et le code d’erreur Supabase, sans afficher la clé ni le corps brut de la réponse. L’API du site continue de renvoyer un message générique.
+
+- `HTTP 401` : clé refusée, révoquée, mal copiée ou appartenant à un autre projet. Copier la clé sans espaces ni ponctuation ajoutée.
+- `PGRST202` : fonction RPC absente du cache de PostgREST, ou paramètres incompatibles. Vérifier que la migration a été exécutée dans le bon projet et que `public.campus_list_events(p_scope text, p_user_id text)` existe.
+- `PGRST205` / `42P01` : table manquante.
+- `HTTP 403` / `42501` : autorisations insuffisantes.
+
+Pour vérifier l’installation depuis le SQL Editor, ces requêtes ne modifient aucune donnée :
+
+```sql
+SELECT to_regclass('public.users') AS users_table,
+       to_regclass('public.events') AS events_table,
+       to_regprocedure('public.campus_list_events(text,text)') AS events_function;
+```
+
+Si les trois valeurs sont `NULL`, appliquer la migration initiale. Si certaines existent déjà, vérifier le schéma et l’erreur du SQL Editor avant de rejouer la migration, afin de conserver les données présentes.
+
+Après installation ou vérification des fonctions, rafraîchir le cache de l’API :
+
+```sql
+NOTIFY pgrst, 'reload schema';
+```

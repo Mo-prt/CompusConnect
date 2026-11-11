@@ -35,8 +35,8 @@ test('configuration rejects publishable keys, missing secrets and unsafe project
 
 test('secret keys use apikey without JWT authorization and remote errors never leak',async()=>{
   let received;
-  const client=new SupabaseStore(env,async(url,options)=>{received={url,options};return Response.json({message:'sensitive SQL detail',secret:'not-for-clients'},{status:500})});
-  await assert.rejects(client.listEvents('campus','u'),error=>error.status===502&&!error.message.includes('sensitive'));
+  const client=new SupabaseStore(env,async(url,options)=>{received={url,options};return Response.json({code:'PGRST202',message:'sensitive SQL detail',secret:'not-for-clients'},{status:404})});
+  await assert.rejects(client.listEvents('campus','u'),error=>error.status===502&&error.supabaseStatus===404&&error.supabaseCode==='PGRST202'&&!error.message.includes('sensitive'));
   assert.equal(received.options.headers.apikey,env.SUPABASE_SECRET_KEY);
   assert.equal(received.options.headers.Authorization,undefined);
   assert.equal(received.options.redirect,'error');
