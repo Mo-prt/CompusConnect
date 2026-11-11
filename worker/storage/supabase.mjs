@@ -10,7 +10,7 @@ export class SupabaseStore {
     if(!env.SUPABASE_URL||!serverKey(env.SUPABASE_SECRET_KEY))throw new ApiError('Configurez SUPABASE_URL et SUPABASE_SECRET_KEY avec une clé serveur Supabase. La clé publique ne suffit pas.',503);
     let url;try{url=new URL(env.SUPABASE_URL)}catch{throw new ApiError('SUPABASE_URL est invalide.',503)}
     if(url.protocol!=='https:'||url.username||url.password||url.search||url.hash||!['','/rest/v1'].includes(url.pathname.replace(/\/+$/,'')))throw new ApiError('SUPABASE_URL doit être une URL HTTPS de projet Supabase, sans paramètres.',503);
-    this.origin=url.origin;this.key=env.SUPABASE_SECRET_KEY;this.fetch=fetchImpl;
+    this.origin=url.origin;this.key=env.SUPABASE_SECRET_KEY;this.fetch=fetchImpl.bind(globalThis);
   }
   async request(resource,{method='GET',query={},body,prefer,token,auth=false}={}){
     const url=new URL((auth?'/auth/v1/':'/rest/v1/')+resource,this.origin);
@@ -21,8 +21,14 @@ export class SupabaseStore {
     else if(!this.key.startsWith('sb_secret_'))headers.Authorization='Bearer '+this.key;
     if(prefer)headers.Prefer=prefer;
     let response;
-    try{response=await this.fetch(url.toString(),{method,headers,redirect:'error',signal:AbortSignal.timeout(10000),...(body===undefined?{}:{body:JSON.stringify(body)})})}
+    // Manual redirects are workerd-compatible; reject 3xx below without forwarding credentials.
+    try{response=await this.fetch(url.toString(),{method,headers,redirect:'manual',signal:AbortSignal.timeout(10000),...(body===undefined?{}:{body:JSON.stringify(body)})})}
     catch{throw new ApiError('Supabase est temporairement inaccessible. Réessayez dans un instant.',503)}
+    if(response.status>=300&&response.status<400){
+      const failure=new ApiError('Supabase a renvoyé une redirection inattendue. Vérifiez SUPABASE_URL.',502);
+      failure.supabaseStatus=response.status;
+      throw failure;
+    }
     if(!response.ok){
       let remote={};try{remote=await response.json()}catch{}
       let failure;

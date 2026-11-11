@@ -56,7 +56,7 @@ test('transport keeps safe status/code diagnostics and never returns SQL or key 
   let options;
   const db=new SupabaseStore(env,async(url,init)=>{options=init;return Response.json({code:'PGRST202',message:'private SQL detail',key:'private value'},{status:404})});
   await assert.rejects(db.rpc('missing',{}),error=>error.status===502&&error.supabaseCode==='PGRST202'&&error.supabaseStatus===404&&!error.message.includes('private'));
-  assert.equal(options.headers.apikey,env.SUPABASE_SECRET_KEY);assert.equal(options.headers.Authorization,undefined);assert.equal(options.redirect,'error');
+  assert.equal(options.headers.apikey,env.SUPABASE_SECRET_KEY);assert.equal(options.headers.Authorization,undefined);assert.equal(options.redirect,'manual');
   const legacy='header.'+btoa(JSON.stringify({role:'service_role'}))+'.sig';
   await new SupabaseStore({...env,SUPABASE_SECRET_KEY:legacy},async(url,init)=>{assert.equal(init.headers.Authorization,'Bearer '+legacy);return Response.json([])}).all('roles');
 });
@@ -189,4 +189,27 @@ test('table reads paginate beyond the default PostgREST page without losing seat
     calls.push(offset);return Response.json(Array.from({length:Math.max(0,Math.min(limit,1001-offset))},(_,i)=>({id:offset+i})));
   });
   const rows=await client.all('event_registrations');assert.equal(rows.length,1001);assert.deepEqual(calls,[0,500,1000]);
+});
+
+
+test('Supabase redirects are blocked without forwarding the key to another destination',async()=>{
+  const calls=[];
+  const db=new SupabaseStore(env,async(url,options)=>{
+    calls.push({url,options});
+    return new Response(null,{status:302,headers:{Location:'https://another-host.example/private'}});
+  });
+  await assert.rejects(db.all('programs'),error=>error.status===502&&error.supabaseStatus===302&&/redirection/.test(error.message));
+  assert.equal(calls.length,1);assert.equal(calls[0].options.redirect,'manual');
+  assert.ok(calls[0].url.startsWith('https://example.supabase.co/'));
+});
+
+
+test('native-style fetch functions receive the global receiver in Workers',async()=>{
+  const nativeStyle=function(url,options){
+    assert.equal(this,globalThis);
+    assert.equal(options.redirect,'manual');
+    return Promise.resolve(Response.json([]));
+  };
+  const client=new SupabaseStore(env,nativeStyle);
+  assert.deepEqual(await client.all('programs'),[]);
 });
