@@ -9,7 +9,7 @@ test('connection checker distinguishes a rejected key from a missing RPC and sch
   const rejected=formatSupabaseDiagnostic(failure(401));
   assert.match(rejected,/HTTP 401/);assert.match(rejected,/clé est refusée/);assert.doesNotMatch(rejected,/NOTIFY/);
   const missing=formatSupabaseDiagnostic(failure(404,'PGRST202'));
-  assert.match(missing,/HTTP 404 \/ PGRST202/);assert.match(missing,/20261110000100_campusconnect.sql/);assert.match(missing,/NOTIFY pgrst/);
+  assert.match(missing,/HTTP 404 \/ PGRST202/);assert.match(missing,/20261111000100_existing_schema.sql/);assert.match(missing,/NOTIFY pgrst/);
 });
 
 test('connection checker gives separate actions for missing tables and database privileges',()=>{

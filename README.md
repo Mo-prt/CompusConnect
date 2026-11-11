@@ -1,86 +1,67 @@
 # CampusConnect FPK — MVP1
 
-Application académique en français, réalisée à partir de la section 8.1 du cahier des charges CampusConnect de la Faculté Polydisciplinaire de Khouribga.
+Portail académique en français pour la Faculté Polydisciplinaire de Khouribga. Le backend est adapté au **schéma Supabase déjà existant** : `profiles`, `user_roles`, `programs`, `events`, `event_registrations`, etc.
 
-## Fonctionnalités
+## Démarrage
 
-- Inscription et connexion par email, mot de passe et filière ; profil et déconnexion.
-- Trois profils : étudiant, enseignant/chef de département et organisateur, avec autorisations côté serveur.
-- Filières de démonstration SIIA, SMA et SVI ; chef de département, coordonnées et permanence.
-- Modules : intitulé, enseignant, objectifs et volume horaire.
-- Emploi du temps hebdomadaire par filière et semestre ; impression et export PDF via le navigateur.
-- Catalogue d’événements avec recherche et filtres ; détails ; inscription et désinscription ; rappel agenda ICS.
-- Organisateur : création, modification, annulation et suivi des participants.
-- Contrôle transactionnel de la capacité, prévention des doublons et isolation des périmètres de démonstration.
-- Interface responsive, navigation clavier et fenêtres accessibles.
+Node.js 24. Appliquer d’abord le complément SQL, configurer les secrets puis lancer l’application selon [le guide Supabase](docs/SUPABASE.md).
 
-Les annonces, supports de cours, réclamations, bibliothèque, Lost & Found, IA, carte et marketplace appartiennent aux MVP suivants.
+```powershell
+npm.cmd ci
+npm.cmd run check:supabase
+npm.cmd test
+npm.cmd run build
+npx.cmd wrangler@4 dev dist/server/index.js --port 8787
+```
+
+Sous macOS/Linux, utiliser `npm` et `npx`. Ouvrir `http://localhost:8787`.
+
+Le complément SQL est `supabase/migrations/20261111000100_existing_schema.sql`. Il préserve les tables, données et politiques existantes et ajoute seulement les fonctions transactionnelles nécessaires. Aucune clé réelle n’est incluse dans le dépôt.
+
+## Fonctionnalités MVP1
+
+- Inscription et connexion avec **Supabase Auth**, confirmation email et sessions HttpOnly.
+- Rôles issus des tables `roles` / `user_roles` : étudiant, enseignant, chef de département, organisateur et administrateur.
+- Département, responsable, filières, modules et emplois du temps lus dans les tables existantes.
+- Catalogue d’événements, filtres, plusieurs filières cibles, détails et export agenda.
+- Inscription et désinscription avec contrôle transactionnel des places et conservation de l’historique.
+- Création, modification, annulation et participants pour les organisateurs autorisés.
+- Interface responsive et navigation clavier.
+
+Les données du campus viennent de votre base. Les anciens comptes de démonstration générés par le backend et les références académiques codées en dur ont été retirés.
 
 ## Architecture
 
-Le frontend HTML/CSS/JavaScript appelle l’API `/api` du Worker Cloudflare ES module. Le backend utilise exclusivement Supabase PostgreSQL via HTTPS/PostgREST.
+`Frontend → Worker /api → Supabase Auth + PostgreSQL/PostgREST`
 
-L’authentification est gérée par CampusConnect : mots de passe hachés, sessions côté serveur et cookie HttpOnly. Supabase Auth n’est pas activé. La clé publique Supabase ne suffit pas à authentifier ce backend ; une clé serveur est nécessaire dans les secrets de l’hébergement.
+- `src/` : HTML, CSS et interactions du frontend.
+- `worker/api.mjs` : validation et contrôles d’accès.
+- `worker/auth.mjs` : cookies, validation des sessions et renouvellement.
+- `worker/storage/supabase.mjs` : transport HTTP et opérations du schéma existant.
+- `worker/storage/catalog.mjs` : lecture et correspondance des données académiques et événementielles.
+- `worker/time.mjs` : conversion des horaires du Maroc.
+- `supabase/migrations/` : complément SQL non destructif pour les tables existantes.
+- `scripts/` : compilation et diagnostic.
+- `tests/` : schéma MVP1 reproduit dans PGlite et services Auth/PostgREST simulés.
 
-- `src/` : interface et références académiques de démonstration.
-- `worker/api.mjs` : validation, authentification, rôles et règles métier.
-- `worker/storage/supabase.mjs` : accès aux tables et fonctions RPC Supabase.
-- `worker/index.mjs` : point d’entrée du Worker et ressources frontend.
-- `supabase/migrations/` : schéma PostgreSQL, permissions, RLS et fonctions transactionnelles.
-- `scripts/build.mjs` : construction du Worker avec esbuild.
-- `scripts/check-supabase.mjs` : vérification de connexion sans modification de données.
-- `tests/` : tests de l’API et du schéma PostgreSQL avec PGlite.
-- [Guide Supabase](docs/SUPABASE.md) : installation du schéma et configuration.
+L’inscription attribue seulement le rôle étudiant à un nouveau profil. Les rôles privilégiés sont administrés en base. Le backend vérifie l’identité auprès de Supabase Auth et ignore les rôles envoyés par le navigateur.
 
-## Installation et vérification
-
-Node.js 24 :
-
-```sh
-npm ci
-npm test
-npm run build
-```
-
-Le résultat de publication est dans `dist/`. Le build nettoie ce dossier avant de produire le Worker et son manifeste. Les migrations PostgreSQL s’appliquent dans Supabase, selon [le guide](docs/SUPABASE.md).
-
-Variables requises côté serveur :
+## Configuration
 
 ```env
 SUPABASE_URL=https://xbpzhylcrbaklmalmivv.supabase.co
-SUPABASE_SECRET_KEY=<votre clé serveur>
+SUPABASE_SECRET_KEY=<clé serveur actuelle du même projet>
 ```
 
-Pour une vérification locale, copier `.env.example` vers `.env`, compléter la clé dans ce fichier ignoré par Git, puis exécuter `npm run check:supabase`. En production, configurer ces variables directement dans l’hébergement. Aucune clé réelle n’est incluse dans le dépôt.
-
-## Démonstration et données
-
-Les noms, contacts, événements et horaires sont fictifs. La connexion propose un profil de démonstration pour chaque rôle. Les données sont persistées dans Supabase ; le navigateur conserve un cookie de session HttpOnly.
-
-L’inscription crée exclusivement des étudiants. Les rôles privilégiés réels sont attribués par un administrateur de confiance dans la table `users`. Les profils de démonstration utilisent leur propre périmètre.
-
-Les filières, modules et emplois du temps sont définis dans `src/data.mjs`. Les comptes, sessions, événements, inscriptions et tentatives de connexion sont enregistrés dans PostgreSQL.
+Les valeurs réelles sont à enregistrer dans les secrets de l’hébergement, ou dans `.env` / `.dev.vars` pour les tests locaux. Ces fichiers sont ignorés par Git. La clé publique ne suffit pas pour ce backend.
 
 ## API
 
-Écritures en JSON avec contrôle de l’origine. Cookie `campus_session` HttpOnly, Secure, SameSite=Strict, durée 24h. Mots de passe PBKDF2 SHA-256 avec sel aléatoire et 100 000 itérations ; jetons de session hachés en base.
+- `GET /api/auth/me`, `POST /api/auth/login`, `POST /api/auth/register`, `POST /api/auth/logout`.
+- `PUT /api/profile`.
+- `GET /api/bootstrap?program=<code>&semester=<UUID-ou-S1>`.
+- `POST /api/events`, `PUT /api/events/:id`, `DELETE /api/events/:id`.
+- `POST /api/events/:id/register`, `DELETE /api/events/:id/register`.
+- `GET /api/events/:id/participants`.
 
-- `GET /api/auth/me` : profil courant.
-- `POST /api/auth/register` : inscription étudiante.
-- `POST /api/auth/login` : connexion par email, mot de passe et filière.
-- `POST /api/auth/demo` : profil de démonstration.
-- `POST /api/auth/logout` : invalidation de la session.
-- `PUT /api/profile` : modification du nom et de la filière.
-- `GET /api/bootstrap?program=SIIA&semester=S9` : références et événements du périmètre.
-- `POST /api/events` : création par un organisateur.
-- `PUT /api/events/:id` : modification par le propriétaire.
-- `DELETE /api/events/:id` : annulation par le propriétaire.
-- `POST /api/events/:id/register` : inscription étudiante.
-- `DELETE /api/events/:id/register` : désinscription étudiante.
-- `GET /api/events/:id/participants` : participants, pour le propriétaire uniquement.
-
-## Tests
-
-Les scénarios exécutent la migration et les fonctions PostgreSQL dans PGlite : permissions, configuration, profils, connexions, mots de passe, sessions, isolation, ciblage filière, capacité, doublons, participants et opérations organisateur.
-
-Le transport PostgREST est simulé. La connexion au projet réel reste à vérifier avec `npm run check:supabase` après application de la migration et configuration de la clé serveur.
+Les jetons d’accès et de renouvellement restent dans les cookies HttpOnly et ne sont pas renvoyés dans le JSON du frontend. Les erreurs de la base sont filtrées. La vérification réelle de votre projet se fait avec `check:supabase` et vos comptes, après application du complément SQL.
