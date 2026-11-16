@@ -6,8 +6,7 @@ const callbackParams=new URLSearchParams(location.hash.slice(1));
 if(callbackParams.has('access_token')||callbackParams.has('error')){authNotice=callbackParams.has('error')?'Le lien de confirmation est expiré ou invalide. Reconnectez-vous ou demandez un nouveau lien.':'Votre adresse email est confirmée. Connectez-vous avec votre mot de passe.';history.replaceState(null,'',location.pathname+location.search);}
 const state={data:null,user:null,page:location.hash.slice(1)||'dashboard',program:'',semester:'',semesterId:'',query:'',category:'Toutes',eventProgram:'Toutes',eventDate:'',authMode:'login',week:0,loading:false,error:null};
 const roleNames={student:'Étudiant',teacher:'Enseignant',organizer:'Organisateur'};
-const photos={ai:'photo-1485827404703-89b55fcc595e',web:'photo-1516321318423-f06f85e504b3',hack:'photo-1522071820081-009f0129c71c',eco:'photo-1441974231531-c6227db76b6e',math:'photo-1509228627152-72ae9ae6848d',bio:'photo-1532187863486-abf9dbad1b69'};
-const photo=(key,w=650)=>`https://images.unsplash.com/${photos[key]||photos.web}?auto=format&fit=crop&w=${w}&q=85`;
+const photo=()=>'/assets/fpk-campus.jpg';
 const fmtDate=(d,opts={day:'numeric',month:'long'})=>new Date(d+'T12:00:00').toLocaleDateString('fr-MA',opts);
 const fullDate=()=>new Intl.DateTimeFormat('fr-MA',{day:'numeric',month:'long',year:'numeric',timeZone:'Africa/Casablanca'}).format(new Date());
 const pInfo=()=>state.data?.programs.find(p=>p.id===state.program)||{id:'',name:'Aucune filière publiée',department:'Non renseigné',head:'Non renseigné',initials:'FPK',email:'Non renseigné',office:'Non renseigné',hours:'Non renseigné',semester:''};

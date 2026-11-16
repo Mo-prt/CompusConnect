@@ -1,68 +1,67 @@
-# CampusConnect — adaptation de la maquette des 16 écrans
+# CampusConnect — écrans et périmètre du cahier des charges
 
-Cette version reprend la maquette communiquée le 16 novembre 2026. La référence visuelle est **Mine & Innovation** : anthracite, ivoire, or et illustration du patrimoine minier de Khouribga. L’identité institutionnelle reste celle de la Faculté Polydisciplinaire de Khouribga, Université Sultan Moulay Slimane.
+Le cahier des charges fonctionnel et technique FPK est la référence. La maquette sert à organiser les écrans ; elle n’ajoute pas de nouveaux services. L’identité affichée est **CampusConnect — Faculté Polydisciplinaire de Khouribga, Université Sultan Moulay Slimane**.
 
-## Correspondance des écrans et des fonctions
+## Fonctions retenues
 
-| Écran | Route | Fonctionnement livré dans le code |
+| Référence | Écrans | Fonctions conservées |
 | --- | --- | --- |
-| 01. Accueil public | `#landing` | Présentation, filières disponibles, événements publiés, accès connexion/inscription. La page reste affichable si la base est indisponible. |
-| 02. Inscription | `#register` | Nom, email, mot de passe confirmé, filière ; confirmation email Supabase Auth. Attribution du rôle étudiant seulement. |
-| 03. Connexion | `#login` | Email/mot de passe/filière, session persistante ou session de navigateur, récupération de mot de passe. Google apparaît seulement si le fournisseur est activé. |
-| 04. Choix du profil | `#choose-profile` | Ouverture d’un espace autorisé ; demande d’accès enseignant/organisateur si nécessaire. L’administrateur approuve dans Mon profil. |
-| 05. Tableau de bord | `#dashboard` | Journée académique, compteurs issus de la base, annonces récentes, événements et inscriptions. |
-| 06. Mon département | `#department` | Présentation, responsable, filières et contact ; onglets fonctionnels. |
-| 07. Modules et EDT | `#modules`, `#schedule` | Recherche, objectifs, enseignants, volume horaire, semestre, navigation hebdomadaire et impression/export PDF via le navigateur. |
-| 08. Annonces | `#announcements` | Lecture des annonces publiées pour la filière ; publication par l’enseignant responsable ou le chef autorisé, avec ciblage transactionnel. |
-| 09. Documents / Smart Library | `#documents`, `#library` | Upload, recherche et filtres, documents par module, bibliothèque, liens externes, audiences toutes filières/ma filière/privé, téléchargements contrôlés. |
-| 10. Réclamations | `#complaints` | Dépôt, fil de messages, suivi et traitement par les personnes autorisées ; transitions de statut contrôlées. |
-| 11. Événements | `#events`, `#organizer` | Catalogue et détails, filtres, inscription/désinscription, agenda, création/modification/annulation, participants avec bouton d’actualisation. |
-| 12. Actualités | `#news` | Lecture, recherche et publication par les profils habilités ; photo de couverture facultative. |
-| 13. Lost & Found | `#lost` | Déclaration perdu/trouvé, photo, lieu, contact choisi par l’auteur, recherche et clôture/restitution par l’auteur. |
-| 14. Collaboration | `#collaboration` | Projets ouverts, adhésion, discussions réservées aux contributeurs, partage de fichiers ou de ressources accessibles à toutes les filières, clôture par le créateur. |
-| 15. FPK GPT | `#assistant`, `#recommendations` | Recherche sourcée, conversations privées, citations et feedback ; connecteur FastAPI préparé ; suggestions par contenu accessibles à l’utilisateur. |
-| 16. FPK Map / Marketplace | `#map`, `#marketplace` | Carte schématique liée aux lieux enregistrés ; ajout de lieux par un administrateur. Offres avec images/prix MAD/type, demandes, acceptation/refus/annulation/finalisation et historique. |
+| **F01 — MVP1** | Inscription, connexion, choix de l’espace, profil | Email, mot de passe et filière ; confirmation email ; rôles Étudiant, Enseignant/Chef de département et Organisateur déjà attribués au compte. Aucun choix de profil ne donne de permissions. |
+| **F02 — MVP1** | Mon département, modules, emploi du temps | Fiche du responsable, coordonnées académiques, modules et objectifs, enseignants, volumes horaires, filière/semestre, consultation hebdomadaire et téléchargement/impression de l’EDT. |
+| **F03 — MVP1** | Catalogue, détail, inscriptions et espace organisateur | Filtres catégorie/date/filière, informations de l’événement, inscription/désinscription, contrôle des places, création, modification, annulation et participants. |
+| **F04 — MVP2** | Annonces, documents et réclamations | Communications ciblées des enseignants, supports de cours/TD/TP, téléchargement autorisé, dépôt et suivi d’une réclamation pédagogique ou technique. |
+| **F05 — MVP2** | Actualités et Lost & Found | Vie du campus, annonces d’objets perdus/trouvés avec photo, lieu et contact, filtres de statut et restitution/clôture. |
+| **F06 — MVP2** | Smart Library et collaboration | Recherche de livres/articles/rapports, partage de ressources et projets transversaux entre filières. |
+| **F07 — MVP3** | FPK GPT et recommandations | Sources internes, réponses et feedback, suggestions de ressources/événements ; connecteur du futur service IA. La recherche sourcée reste active tant que l’API IA n’est pas prête. |
+| **F08 — MVP3** | FPK Map et Marketplace | Localisation des locaux enregistrés et des services du campus ; publication, demande et clôture des offres d’échange, de prêt, de don ou de cession de matériel étudiant. |
 
-Les écrans affichent des états vides lorsque le projet ne contient pas encore de données. Aucun compte, inscription, avis ou compteur de démonstration n’est créé automatiquement. L’illustration minière est une illustration générée, pas une photographie certifiée du campus.
+Références : sections 4, 6, 8, 9, 10 et 15 du cahier des charges fourni. Les fonctions d’administration interne nécessaires à la sécurité et au paramétrage des données ne constituent pas de nouveaux modules étudiants.
 
-## Identité visuelle
+## Accueil public
+
+L’accueil présente uniquement le portail, la photo de la faculté, l’accès inscription/connexion, les événements publiés et les services F01 à F08. Il ne présente ni catalogue commercial de formations, ni admissions, recherche institutionnelle, carrières ou offres partenaires indépendantes du portail.
+
+Les textes et éléments de marque miniers sont retirés. La navigation ne comporte plus de pages promotionnelles séparées. Les photos et annonces publiées par les utilisateurs dans les modules prévus restent liées à leur contenu.
+
+## Écrans retirés du périmètre
+
+- Connexion par un fournisseur tiers et récupération de mot de passe ajoutées à la maquette.
+- Option de connexion persistante dans le formulaire ; les cookies de session restent gérés côté serveur.
+- Demande d’un rôle privilégié et interface d’approbation des demandes.
+- Centre de notifications et actions associées.
+- Pages publiques de présentation institutionnelle ou de promotion de formations.
+- Écran de création de lieux depuis l’interface étudiante ; la carte utilise les lieux paramétrés dans la base.
+
+Les anciennes routes applicatives de connexion tierce, de récupération, de demandes de rôles et de notifications ne sont plus exposées. Les migrations et tables historiques ne sont pas supprimées : cette correction ne détruit aucune donnée.
+
+## Présentation et accessibilité
+
+La photographie de façade indiquée par l’utilisateur est intégrée depuis la couverture publique de la page officielle FPK (JPEG disponible : 640 × 288). Elle est cadrée avec CSS sans modifier le fichier ni ajouter de texte sur la façade. La provenance est documentée dans `src/assets/README.md`.
+
+Le thème anthracite, ivoire et or est conservé. Les couleurs sont centralisées dans `src/experience.css` :
 
 | Token | HEX | Usage |
 | --- | --- | --- |
-| `--ink` | `#203036` | Barre latérale, titres, bandeaux |
-| `--paper` | `#FBF7F0` | Fond ivoire |
+| `--ink` | `#203036` | Menu, titres et bandeaux |
+| `--paper` | `#FBF7F0` | Fond de page |
 | `--surface` | `#FFFDF9` | Cartes et formulaires |
-| `--primary` | `#A5660B` | Boutons et liens d’action |
-| `--gold` | `#B77B17` | Accents, sélection, illustration |
-| `--gold-soft` | `#F8E9CB` | Fonds de badges |
-| `--line` | `#E3DDD2` | Séparateurs et bordures |
+| `--primary` | `#A5660B` | Actions |
+| `--gold` | `#B77B17` | Accents |
+| `--gold-soft` | `#F8E9CB` | Badges |
+| `--line` | `#E3DDD2` | Bordures |
 | `--muted` | `#726F69` | Texte secondaire |
 
-La nouvelle expérience est dans `src/experience.js` et `src/experience.css`. Les fonctions MVP1 conservées sont dans `src/app.js`. Le Worker sert les deux scripts dans l’ordre, puis les deux feuilles de style réunies. Les layouts couvrent desktop, tablette et mobile. Les dialogues sont accessibles au clavier et les contenus utilisateur sont échappés.
+Les informations proviennent de la base. Aucun compteur ou compte de démonstration n’est inventé. La mise en page s’adapte au mobile ; les contrôles restent accessibles au clavier et les contenus utilisateur sont échappés.
 
-## Activation sur le projet Supabase existant
+## Configuration Supabase
 
-1. Conserver les tables et données existantes. La première migration `20261111000100_existing_schema.sql` reste nécessaire pour le MVP1 ; elle a déjà été appliquée sur le projet initial.
-2. Exécuter **`supabase/migrations/20261116000100_campus_services.sql`** dans le SQL Editor du même projet. Elle ajoute la colonne facultative `news_posts.category`, quatre tables préfixées `campus_`, cinq fonctions serveur et un bucket privé `campus-files` s’il n’existe pas. Elle ne supprime aucune table/donnée et ne remplace pas les politiques des tables existantes.
-3. Dans **Storage**, vérifier que `campus-files` est privé. Une configuration existante n’est pas écrasée ; l’upload refuse un bucket public. PDF, PNG, JPEG et WebP acceptés, 10 Mo maximum. Les signatures des fichiers sont contrôlées côté serveur.
-4. Renseigner les valeurs réelles de `.env` / `.dev.vars` ou du gestionnaire de secrets de l’hébergement. Ne pas committer ces fichiers.
-5. Exécuter `npm.cmd run check:supabase`, puis les tests et la compilation.
+Conserver les migrations existantes : `20261111000100_existing_schema.sql` pour le socle et `20261116000100_campus_services.sql` pour les services. Elles restent applicables aux tables CampusConnect existantes. Les tables historiques de demandes et de notifications ne sont plus utilisées par les écrans ; elles sont préservées pour ne pas perdre d’anciennes données.
 
-La migration suppose le schéma CampusConnect existant inspecté, y compris les tables des MVP2/3 (`announcements`, `files`, `complaints`, etc.). Elle n’est pas un installateur de base vide. Les nouvelles tables sont protégées par RLS et n’accordent aucun accès direct à `anon` ou `authenticated` ; le Worker applique les règles d’accès avec l’identité vérifiée par Supabase Auth.
+Cette correction de périmètre n’exige pas de nouvelle migration SQL sur une base déjà configurée. Les nouveaux fichiers ou thèmes ne modifient pas automatiquement la base distante.
 
-## Google et récupération de mot de passe
+Dans **Authentication → URL Configuration**, autoriser `http://localhost:8787` pour les tests et l’URL du site déployé. Les nouveaux profils reçoivent le rôle étudiant ; les profils enseignants, chefs de département et organisateurs sont attribués par l’établissement, puis vérifiés côté serveur.
 
-Dans **Authentication → URL Configuration**, autoriser le domaine de production et, pour le développement, les URL :
-
-```text
-http://localhost:8787
-http://localhost:8787/api/auth/callback
-http://localhost:8787/api/auth/callback?flow=recovery
-```
-
-Ajouter les mêmes chemins sous le domaine de production. Utiliser `localhost` de façon cohérente pendant les essais. Activer et configurer Google dans **Authentication → Sign In / Providers → Google**, puis renseigner dans Google Cloud le callback Supabase affiché par ce fournisseur.
-
-La connexion Google et la récupération utilisent PKCE avec un vérificateur en cookie HttpOnly de courte durée. L’échange du code reste côté serveur. La récupération exige l’ouverture du lien dans le même navigateur. Les comptes inactifs ne sont pas réactivés et les rôles ne proviennent jamais du formulaire ni des métadonnées Google.
+Le bucket `campus-files` doit rester privé. Les uploads acceptent PDF, PNG, JPEG et WebP, 10 Mo maximum, avec contrôle du contenu. Les téléchargements vérifient la propriété ou l’audience du document.
 
 ## FPK GPT et recommandations
 
@@ -104,7 +103,7 @@ Les suggestions actuelles sont calculées par correspondance avec les modules (`
 - L’auteur d’une réclamation, son responsable désigné, le chef compétent et l’administrateur disposent des accès prévus ; les autres étudiants ne voient pas son contenu.
 - Un contributeur rejoint un projet avant de poster. Une ressource de bibliothèque privée ne peut pas être diffusée par son simple identifiant.
 - L’acceptation des demandes Marketplace est transactionnelle et verrouille l’offre : une seule demande peut être acceptée. La clôture conserve les transactions.
-- Les notifications sont internes à l’application. Aucun email aux collègues ou aux étudiants n’est envoyé par cette adaptation.
+- Aucun centre de notifications ni demande d’accès aux profils n’est exposé. Les rôles restent attribués par l’établissement.
 - La liste des participants se recharge après les actions et avec « Actualiser la liste ». Aucun abonnement temps réel Supabase n’est configuré.
 - La carte est schématique. Elle ne prétend pas fournir un plan géographique officiel ni une navigation GPS.
 - Aucun paiement, billetterie ou livraison en ligne n’est ajouté.
@@ -121,4 +120,4 @@ npx.cmd wrangler@4 dev dist/server/index.js --port 8787
 
 Les tests exécutent les vraies fonctions SQL dans PGlite et simulent les transports Auth, PostgREST et Storage. Les contrôles de frontend utilisent un environnement DOM simulé et ne remplacent pas une recette visuelle au navigateur. La CI GitHub exécute les tests et la compilation sans clé réelle.
 
-Avant une livraison, essayer avec de vrais comptes : confirmation email, Google si activé, récupération, quatre profils, téléchargement privé, cycle de réclamation, partage inter-filières, réservation Marketplace et navigation mobile/clavier. Cette étape valide la configuration du projet distant, qui n’est pas modifiée automatiquement par un `git pull`.
+Avant une livraison, essayer avec de vrais comptes : confirmation email, connexion par filière, profils autorisés, téléchargement privé, cycle de réclamation, partage inter-filières, réservation Marketplace et navigation mobile/clavier. Cette étape valide la configuration du projet distant, qui n’est pas modifiée automatiquement par un `git pull`.

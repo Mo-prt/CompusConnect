@@ -3,8 +3,8 @@ import {ApiError} from '../worker/errors.mjs';
 import {formatSupabaseDiagnostic} from './supabase-diagnostic.mjs';
 const tables=['profiles','roles','user_roles','programs','departments','department_heads','semesters','modules','program_modules','timetables','timetable_sessions','classrooms','events','event_program_targets','event_registrations'];
 const functions=['campus_existing_ensure_profile','campus_existing_save_event','campus_existing_register','campus_existing_cancel_event'];
-const serviceTables=['announcements','announcement_targets','course_documents','files','library_resources','library_resource_programs','complaints','complaint_messages','news_posts','lost_found_items','collaboration_spaces','collaboration_members','shared_resources','campus_locations','marketplace_listings','marketplace_categories','marketplace_images','marketplace_transactions','notifications','recommendations','recommendation_feedback','resource_views','chat_conversations','chat_messages','campus_role_requests','campus_discussions','campus_message_citations','campus_chat_feedback'];
-const serviceFunctions=['campus_publish_announcement','campus_decide_role_request','campus_marketplace_request','campus_marketplace_decide','campus_marketplace_close'];
+const serviceTables=['announcements','announcement_targets','course_documents','files','library_resources','library_resource_programs','complaints','complaint_messages','news_posts','lost_found_items','collaboration_spaces','collaboration_members','shared_resources','campus_locations','marketplace_listings','marketplace_categories','marketplace_images','marketplace_transactions','recommendations','recommendation_feedback','resource_views','chat_conversations','chat_messages','campus_discussions','campus_message_citations','campus_chat_feedback'];
+const serviceFunctions=['campus_publish_announcement','campus_marketplace_request','campus_marketplace_decide','campus_marketplace_close'];
 try{
   const db=new SupabaseStore(process.env),schema=await db.schema();
   const missing=tables.filter(name=>!schema.definitions?.[name]);

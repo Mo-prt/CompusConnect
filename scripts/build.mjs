@@ -10,7 +10,7 @@ await build({
   format:'esm',
   target:'es2022',
   outfile:'dist/server/index.js',
-  loader:{'.html':'text','.css':'text','.js':'text','.png':'binary'},
+  loader:{'.html':'text','.css':'text','.js':'text','.jpg':'binary'},
   legalComments:'none',
 });
 await fs.copyFile('.openai/hosting.json','dist/.openai/hosting.json');

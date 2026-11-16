@@ -23,10 +23,10 @@ async function context({signedIn=true,offline=false,hash=''}={}){
   vm.runInContext(core,ctx);vm.runInContext(experience,ctx);await new Promise(resolve=>setTimeout(resolve,50));return{ctx,get,calls,handlers,location};
 }
 
-test('public landing stays usable when Supabase is offline and sign-in is a full-page flow',async()=>{
+test('public landing stays usable when Supabase is offline and stays within the academic scope',async()=>{
   const {ctx,get}=await context({signedIn:false,offline:true});
-  assert.match(get('app').innerHTML,/Un héritage/);assert.match(get('app').innerHTML,/khouribga-mine.png/);assert.match(get('app').innerHTML,/#register/);
-  vm.runInContext("state.page='login';render()",ctx);assert.match(get('app').innerHTML,/experience-auth/);assert.match(get('app').innerHTML,/forgot-password/);assert.ok(!get('app').innerHTML.includes('Continuer avec Google'));
+  assert.match(get('app').innerHTML,/Le portail étudiant/);assert.match(get('app').innerHTML,/fpk-campus.jpg/);assert.match(get('app').innerHTML,/#register/);
+  vm.runInContext("state.page='login';render()",ctx);assert.match(get('app').innerHTML,/experience-auth/);assert.ok(!get('app').innerHTML.includes('forgot-password'));assert.ok(!get('app').innerHTML.includes('remember'));assert.ok(!get('app').innerHTML.includes('Formations'));assert.ok(!get('app').innerHTML.includes('Continuer avec Google'));
 });
 
 test('all sixteen-screen routes render with actual program data and no placeholder records',async()=>{
@@ -36,12 +36,14 @@ test('all sixteen-screen routes render with actual program data and no placehold
   vm.runInContext("state.page='dashboard';render()",ctx);assert.match(get('app').innerHTML,/SIIA/);assert.match(get('app').innerHTML,/S9/);assert.match(get('app').innerHTML,/0 publication/);
 });
 
-test('role choice creates a request instead of granting a role and private pages require login',async()=>{
+test('role choice is restricted to assigned roles without an access-request workflow',async()=>{
   const {ctx,get,calls}=await context();
+  vm.runInContext("state.page='choose-profile';render()",ctx);
+  assert.match(get('app').innerHTML,/data-value="organizer"[^>]*disabled/);
   await vm.runInContext("onAction('select-role',{dataset:{value:'organizer'}})",ctx);
-  vm.runInContext("state.page='choose-profile';render()",ctx);assert.match(get('app').innerHTML,/Demander cet accès/);
-  await vm.runInContext("onAction('continue-role',{dataset:{}})",ctx);assert.match(get('modal-root').innerHTML,/Demander un accès/);
-  assert.match(get('modal-root').innerHTML,/value="organizer" selected/);
+  assert.equal(vm.runInContext('state.selectedRole',ctx),'student');
+  assert.ok(!get('app').innerHTML.includes('Demander cet accès'));
+  assert.equal(get('modal-root').innerHTML,'');
   assert.deepEqual(JSON.parse(vm.runInContext('JSON.stringify(state.user.roles)',ctx)),['student']);assert.ok(!calls.some(c=>c.url.includes('/role-requests')));
   vm.runInContext("state.user=null;state.page='complaints';render()",ctx);assert.match(get('app').innerHTML,/Connectez-vous/);assert.ok(!get('app').innerHTML.includes('Nouvelle réclamation'));
 });
@@ -54,12 +56,25 @@ test('user content is escaped in lists, chat answers and source labels',async()=
   assert.ok(!get('app').innerHTML.includes('<script>danger'));assert.match(get('app').innerHTML,/&lt;b&gt;Source/);
 });
 
-test('login submission preserves remember-me choice and registration rejects mismatched passwords',async()=>{
+test('login submits the required identity fields and registration rejects mismatched passwords',async()=>{
   const {ctx,get,calls,handlers}=await context({signedIn:false});
   const submit=handlers.find(h=>h.name==='submit'&&h.capture===true).fn;
   const form={id:'experience-auth',dataset:{mode:'register'},values:{name:'Amine',email:'amine@example.test',password:'password-test',confirmation:'different',program:'SIIA'},elements:{},querySelector(selector){return selector.includes('error')?get('test-error'):{disabled:false}}};
   await submit({target:form,preventDefault(){},stopImmediatePropagation(){}});assert.match(get('test-error').innerHTML,/ne correspondent pas/);assert.ok(!calls.some(c=>c.url.endsWith('/auth/register')));
-  form.dataset.mode='login';form.elements.remember={checked:false};form.values.confirmation='password-test';
+  form.dataset.mode='login';delete form.values.name;form.values.confirmation='password-test';
   await submit({target:form,preventDefault(){},stopImmediatePropagation(){}});
-  const call=calls.find(c=>c.url.endsWith('/auth/login'));assert.equal(JSON.parse(call.options.body).remember,false);assert.equal(vm.runInContext('state.page',ctx),'choose-profile');
+  const call=calls.find(c=>c.url.endsWith('/auth/login'));assert.deepEqual(Object.keys(JSON.parse(call.options.body)).sort(),['email','password','program']);assert.equal(vm.runInContext('state.page',ctx),'choose-profile');
+});
+
+
+test('all application screens omit removed branding and out-of-scope entry points',async()=>{
+  const {ctx,get}=await context();
+  for(const page of ['landing','login','register','choose-profile','dashboard','department','modules','schedule','announcements','documents','library','complaints','events','news','lost','collaboration','assistant','recommendations','map','marketplace','profile']){
+    vm.runInContext(`state.page='${page}';render()`,ctx);
+    const html=get('app').innerHTML;
+    assert.doesNotMatch(html,/Mine &|Innovation|héritage|intelligence de demain|khouribga-mine|Continuer avec Google|forgot-password|Se souvenir|Mes notifications|Demander un accès|Formations|#programs|#about/,page);
+  }
+  for(const page of ['about','programs','forgot-password','reset-password']){
+    vm.runInContext(`state.page='${page}';render()`,ctx);assert.equal(vm.runInContext('state.page',ctx),'landing');
+  }
 });

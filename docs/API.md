@@ -2,32 +2,25 @@
 
 Préfixe : `/api`. JSON UTF-8 pour les écritures, sauf les uploads binaires. Authentification par cookies HttpOnly ; aucun jeton ne doit être stocké dans le frontend. Les droits sont relus en base pour chaque requête. Les identifiants métier sont des UUID.
 
-## Accès et compte
+## Accès et compte — F01
 
 | Méthode et chemin | Contenu / résultat |
 | --- | --- |
 | `GET /auth/me` | `{user}` ou `{user:null}`. |
 | `POST /auth/register` | `{name,email,password,program}`. `program` est le code de filière. Peut répondre `202` avec `requiresEmailConfirmation`. |
-| `POST /auth/login` | `{email,password,program,remember}`. `remember:false` crée une session de navigateur. |
+| `POST /auth/login` | `{email,password,program}`. Les rôles sont lus dans les tables du projet. |
 | `POST /auth/logout` | Révoque la session locale et efface les cookies. |
-| `GET /auth/options` | `{google:boolean}` issu des paramètres du fournisseur Supabase. |
-| `POST /auth/google` | `{program}` → URL d’autorisation, cookie PKCE HttpOnly. |
-| `GET /auth/callback?code=…` | Échange serveur du code, puis redirection vers le choix du profil ou la récupération. |
-| `POST /auth/recover` | `{email}`. Réponse générique pour éviter l’énumération des comptes. |
-| `POST /auth/password` | `{password}`. Exige le cookie court de récupération PKCE ; révoque ensuite ce jeton. |
 | `PUT /profile` | `{name,program}` ; ne permet pas de modifier les rôles. |
-| `POST /role-requests` | `{role:"teacher" ou "organizer",reason}`. Demande en attente, aucun privilège attribué. |
-| `PATCH /role-requests/:id` | `{approve:boolean}`. Administrateur seulement ; décision atomique. |
 
-## Lecture de l’espace
+## Lecture de l’espace — F01 à F08
 
 `GET /bootstrap?program=<code>&semester=<UUID-ou-S9>` fournit les références, modules, EDT et événements du socle.
 
-`GET /campus` exige un compte actif. Il fournit uniquement les collections accessibles : `modules`, `announcements`, `documents`, `library`, `complaints`, `news`, `lost`, `spaces`, `resources`, `locations`, `listings`, `categories`, `transactions`, `notifications`, `requests`, `recommendations`. Les modules comportent `writable`, les espaces `joined` et `memberCount`.
+`GET /campus` exige un compte actif. Il fournit uniquement les collections accessibles : `modules`, `announcements`, `documents`, `library`, `complaints`, `news`, `lost`, `spaces`, `resources`, `locations`, `listings`, `categories`, `transactions`, `recommendations`. Les modules comportent `writable`, les espaces `joined` et `memberCount`.
 
 `unavailable` identifie les tables absentes lors d’un déploiement incomplet. Une erreur de transport ou de permissions n’est pas convertie silencieusement en collection vide. Appliquer les migrations avant la recette complète.
 
-## Pédagogie, ressources et fichiers
+## Pédagogie, ressources et fichiers — F02, F04, F06
 
 | Méthode et chemin | Corps / droits |
 | --- | --- |
@@ -42,7 +35,7 @@ Types de documents : `course`, `td`, `tp`, `exam`, `handout`, `other`. Types de 
 
 Un upload isolé reste privé. Il devient téléchargeable par d’autres comptes lorsqu’il est lié explicitement à un contenu qu’ils peuvent consulter.
 
-## Réclamations
+## Réclamations — F04
 
 | Méthode et chemin | Corps / droits |
 | --- | --- |
@@ -51,7 +44,7 @@ Un upload isolé reste privé. Il devient téléchargeable par d’autres compte
 | `POST /complaints/:id/messages` | `{message}`. Compte autorisé sur la réclamation. |
 | `PATCH /complaints/:id` | `{status,resolution_note}`. Personnel autorisé ; `submitted → under_review/rejected`, `under_review → resolved/rejected`. Les états terminaux ne sont pas réouverts par cette route. |
 
-## Événements
+## Événements — F03
 
 | Méthode et chemin | Corps / droits |
 | --- | --- |
@@ -63,7 +56,7 @@ Un upload isolé reste privé. Il devient téléchargeable par d’autres compte
 
 Les dates/heures de formulaire suivent `Africa/Casablanca`. `capacity:null` signifie absence de limite. `programs:[]` ouvre l’événement à toutes les filières.
 
-## Communauté et services
+## Communauté et services — F05, F06, F08
 
 | Méthode et chemin | Corps / droits |
 | --- | --- |
@@ -77,9 +70,8 @@ Les dates/heures de formulaire suivent `Africa/Casablanca`. `capacity:null` sign
 | `POST /collaboration/:id/resources` | `{title,description,file_id?,library_resource_id?}`. Mêmes droits ; la ressource liée doit être visible à toutes les filières. |
 | `PATCH /collaboration/:id` | Clôture par le créateur ou administrateur ; historique conservé. |
 | `POST /locations` | `{name,location_type,building,description,map_x,map_y}`. Administrateur. Coordonnées schématiques en pourcentage de 0 à 100. |
-| `PATCH /notifications/:id` | Marque comme lue uniquement une notification du compte courant. |
 
-## Marketplace
+## Marketplace — F08
 
 | Méthode et chemin | Corps / droits |
 | --- | --- |
@@ -91,7 +83,7 @@ Les dates/heures de formulaire suivent `Africa/Casablanca`. `capacity:null` sign
 
 Types d’offres : `sale`, `loan`, `donation`, `exchange`. États du matériel : `new`, `very_good`, `good`, `acceptable`, `not_applicable`. Les transitions Marketplace utilisent des fonctions SQL qui verrouillent d’abord l’offre pour empêcher plusieurs acceptations concurrentes.
 
-## Assistant et suggestions
+## Assistant et suggestions — F07
 
 | Méthode et chemin | Corps / résultat |
 | --- | --- |
@@ -103,6 +95,10 @@ Types d’offres : `sale`, `loan`, `donation`, `exchange`. États du matériel :
 | `POST /recommendations/:id/feedback` | `{is_relevant:boolean}` sur une recommandation du compte courant. |
 
 Le contrat du futur service FastAPI et les limites du mode de recherche sont décrits dans [le guide d’adaptation](DESIGN_ET_FONCTIONNALITES.md#fpk-gpt-et-recommandations).
+
+## Périmètre
+
+Les connexions tierces, les demandes de rôles et un centre de notifications ne font pas partie des écrans exposés. Leurs anciennes routes applicatives sont retirées. Les tables et migrations historiques sont conservées pour préserver les bases déjà configurées.
 
 ## Codes HTTP
 

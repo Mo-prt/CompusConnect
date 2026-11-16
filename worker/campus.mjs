@@ -26,15 +26,13 @@ export async function academicScope(db,user,refs){
 export async function readCampus(db,user,refs,includeEventSuggestions=false){
   const scope=await academicScope(db,user,refs),unavailable=[];
   const read=async(table,query={})=>{try{return await db.all(table,query)}catch(error){if(!missing(error))throw error;unavailable.push(table);return[]}};
-  const [announcements,targets,documents,library,libraryTargets,complaints,news,lost,spaces,members,resources,locations,listings,categories,transactions,notifications,requests,recommendations,images]=await Promise.all([
+  const [announcements,targets,documents,library,libraryTargets,complaints,news,lost,spaces,members,resources,locations,listings,categories,transactions,recommendations,images]=await Promise.all([
     read('announcements',{order:'created_at.desc'}),read('announcement_targets'),read('course_documents',{order:'created_at.desc'}),
     read('library_resources',{order:'created_at.desc'}),read('library_resource_programs'),read('complaints',{order:'submitted_at.desc'}),
     read('news_posts',{status:'eq.published',order:'created_at.desc'}),read('lost_found_items',{order:'created_at.desc'}),
     read('collaboration_spaces',{order:'created_at.desc'}),read('collaboration_members'),read('shared_resources',{order:'shared_at.desc'}),
     read('campus_locations'),read('marketplace_listings',{order:'created_at.desc'}),read('marketplace_categories'),
     read('marketplace_transactions',{or:`(requester_id.eq.${user.id},owner_id.eq.${user.id})`,order:'requested_at.desc'}),
-    read('notifications',{user_id:'eq.'+user.id,order:'created_at.desc'}),
-    read('campus_role_requests',has(user,'admin')?{}:{user_id:'eq.'+user.id}),
     read('recommendations',{user_id:'eq.'+user.id,order:'generated_at.desc'}),read('marketplace_images',{order:'sort_order.asc'})
   ]);
   const readableLibrary=library.filter(row=>visibleLibrary(row,libraryTargets,user));
@@ -49,7 +47,7 @@ export async function readCampus(db,user,refs,includeEventSuggestions=false){
     documents:documents.filter(row=>row.uploaded_by===user.id||published(row)&&scope.modules.some(m=>m.id===row.module_id)),
     library:readableLibrary,complaints:readableComplaints,news:news.filter(row=>!row.published_at||published(row)),lost,
     spaces:readableSpaces.map(s=>({...s,memberCount:new Set([s.created_by,...members.filter(m=>m.space_id===s.id).map(m=>m.user_id)]).size,joined:s.created_by===user.id||members.some(m=>m.space_id===s.id&&m.user_id===user.id)})),
-    resources:readableResources,locations,listings:listings.filter(row=>['available','reserved','completed'].includes(row.status)||row.seller_id===user.id).map(row=>({...row,image_file_id:images.find(image=>image.listing_id===row.id)?.file_id||null})),categories,transactions,notifications,requests,
+    resources:readableResources,locations,listings:listings.filter(row=>['available','reserved','completed'].includes(row.status)||row.seller_id===user.id).map(row=>({...row,image_file_id:images.find(image=>image.listing_id===row.id)?.file_id||null})),categories,transactions,
     recommendations:recommendations.filter(row=>(!row.expires_at||new Date(row.expires_at)>new Date())&&(row.target_type==='library_resource'&&readableLibrary.some(x=>x.id===row.target_id)||row.target_type==='shared_resource'&&readableResources.some(x=>x.id===row.target_id))),
     unavailable:[...new Set(unavailable)]
   };
@@ -59,11 +57,7 @@ export async function readCampus(db,user,refs,includeEventSuggestions=false){
     const events=await loadEvents(db,refs,user);
     result.recommendations.push(...eventSuggestions.filter(row=>events.some(e=>e.id===row.target_id&&e.status==='published'&&new Date(e.starts_at)>new Date()&&(!e.targeted||e.programs.includes(user.program)))));
   }
-  if(has(user,'admin')&&requests.length){
-    const ids=[...new Set(requests.map(r=>r.user_id))];
-    const applicants=await db.all('profiles',{id:'in.('+ids.join(',')+')',select:'id,first_name,last_name'});
-    result.requests=requests.map(r=>({...r,requester_name:applicants.filter(p=>p.id===r.user_id).map(p=>[p.first_name,p.last_name].filter(Boolean).join(' '))[0]||r.user_id}));
-  }
+
   return result;
 }
 
@@ -160,7 +154,7 @@ async function assistant(request,db,user,refs,env,input){
 
 /** Service-role transport requires explicit ownership and scope checks on every route. */
 export async function handleCampus({request,db,user,refs,env,path,method,body}){
-  const roots=['/campus','/uploads','/files/','/announcements','/documents','/library','/complaints','/news','/lost-found','/collaboration','/locations','/marketplace','/notifications','/role-requests','/assistant','/recommendations'];
+  const roots=['/campus','/uploads','/files/','/announcements','/documents','/library','/complaints','/news','/lost-found','/collaboration','/locations','/marketplace','/assistant','/recommendations'];
   if(!roots.some(root=>path===root||path.startsWith(root.endsWith('/')?root:root+'/')))return null;
   check(user,'Connectez-vous pour accéder à cet espace.',401);check(user.accountStatus==='active');
   const respond=(value,status=200)=>({value,status});
@@ -295,16 +289,6 @@ export async function handleCampus({request,db,user,refs,env,path,method,body}){
   if(transaction&&method==='PATCH'){
     const input=await body(),result=await db.rpc('campus_marketplace_decide',{p_user_id:user.id,p_transaction_id:id(transaction[1]),p_status:pick(input.status,['accepted','rejected','completed','cancelled'],'statut')});
     check(result?.status==='ok','Cette demande a changé ou vous ne pouvez pas la modifier.',409);return respond(result);
-  }
-  const notification=path.match(/^\/notifications\/([^/]+)$/);
-  if(notification&&method==='PATCH'){await db.update('notifications',id(notification[1]),{read_at:now()},{user_id:'eq.'+user.id});return respond({ok:true})}
-  if(path==='/role-requests'&&method==='POST'){
-    const input=await body(),role=pick(input.role,['teacher','organizer'],'profil');check(!user.roles.includes(role),'Ce profil vous est déjà attribué.',409);
-    return respond(one(await db.insert('campus_role_requests',{user_id:user.id,requested_role:role,reason:required(input.reason,'motif',10,2000),status:'pending'})),201);
-  }
-  const roleRequest=path.match(/^\/role-requests\/([^/]+)$/);
-  if(roleRequest&&method==='PATCH'){
-    check(has(user,'admin'));const input=await body(),result=await db.rpc('campus_decide_role_request',{p_admin_id:user.id,p_request_id:id(roleRequest[1]),p_approve:input.approve===true});check(result?.status==='ok','Cette demande a déjà été traitée.',409);return respond(result);
   }
   if(path==='/assistant'&&method==='POST')return respond(await assistant(request,db,user,refs,env,await body()));
   if(path==='/assistant'&&method==='GET')return respond({conversations:await db.all('chat_conversations',{user_id:'eq.'+user.id,order:'updated_at.desc'})});

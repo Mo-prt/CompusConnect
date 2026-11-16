@@ -1,8 +1,8 @@
-# CampusConnect FPK — Mine & Innovation
+# CampusConnect FPK — Portail étudiant
 
 Portail académique en français pour la Faculté Polydisciplinaire de Khouribga. Le backend est adapté au **schéma Supabase déjà existant** : `profiles`, `user_roles`, `programs`, `events`, `event_registrations`, etc.
 
-La maquette des **16 écrans** est adaptée dans le projet : accueil public, compte, espace académique, pédagogie, entraide, assistant, carte et Marketplace. Voir [l’analyse fonctionnelle et les instructions d’activation](docs/DESIGN_ET_FONCTIONNALITES.md).
+Les écrans suivent les fonctionnalités **F01 à F08 du cahier des charges** : compte, département, événements, pédagogie, entraide, assistant et services campus. Voir [la correspondance avec le cahier des charges](docs/DESIGN_ET_FONCTIONNALITES.md).
 
 Les contrats et droits des routes sont décrits dans [la documentation API](docs/API.md).
 
@@ -24,12 +24,11 @@ Les compléments SQL sont `supabase/migrations/20261111000100_existing_schema.sq
 
 ## Nouveaux services
 
-- Identité anthracite/ivoire/or, accueil public et illustration Mine & Innovation.
-- Parcours d’inscription, choix d’espace sans élévation de privilèges, demandes d’accès administrées.
-- Google conditionnel à la configuration du fournisseur et récupération de mot de passe par PKCE.
+- Accueil du portail étudiant, identité anthracite/ivoire/or et photographie de la faculté.
+- Inscription et connexion par email, mot de passe et filière ; routage limité aux profils déjà autorisés.
 - Annonces, documents et bibliothèque avec fichiers privés et audiences par filière.
 - Réclamations privées, messages et traitement ; actualités, Lost & Found et projets collaboratifs.
-- FPK Map schématique, offres Marketplace et demandes transactionnelles, notifications internes.
+- FPK Map schématique, offres Marketplace et demandes transactionnelles.
 - FPK GPT en recherche sourcée, historique et feedback. Le service IA externe n’étant pas encore prêt, son connecteur est préparé et configurable. Suggestions par contenu accessibles à l’utilisateur.
 
 ## Fonctionnalités MVP1
@@ -49,10 +48,9 @@ Les données du campus viennent de votre base. Les anciens comptes de démonstra
 `Frontend → Worker /api → Supabase Auth + PostgreSQL/PostgREST`
 
 - `src/` : HTML, CSS et interactions du frontend.
-- `src/experience.js`, `src/experience.css` : nouvelle navigation et design des 16 écrans.
+- `src/experience.js`, `src/experience.css` : navigation et écrans du cahier des charges.
 - `worker/api.mjs` : validation et contrôles d’accès.
 - `worker/auth.mjs` : cookies, validation des sessions et renouvellement.
-- `worker/auth-flows.mjs` : Google et récupération de mot de passe avec PKCE.
 - `worker/campus.mjs` : services pédagogiques et communautaires, fichiers, accès et assistant.
 - `worker/storage/supabase.mjs` : transport HTTP et opérations du schéma existant.
 - `worker/storage/catalog.mjs` : lecture et correspondance des données académiques et événementielles.

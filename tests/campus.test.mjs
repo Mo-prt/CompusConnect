@@ -112,14 +112,13 @@ test('news publication, lost-item closure and map editing respect their distinct
   assert.equal((await call('/locations','POST',location,'admin')).status,201);
 });
 
-test('profile selection requests access without self-assigning a privileged role',async()=>{
-  const created=await call('/role-requests','POST',{role:'organizer',reason:'Je représente un club étudiant et organise ses activités.'});
-  assert.equal(created.status,201,JSON.stringify(created.data));
+test('out-of-scope role-request routes are unavailable and cannot grant privileges',async()=>{
+  assert.equal((await call('/role-requests','POST',{role:'organizer',reason:'Demande hors du périmètre fonctionnel.'})).status,404);
+  assert.equal((await call('/role-requests/'+uid(999),'PATCH',{approve:true},'admin')).status,404);
   assert.equal((await call('/auth/me')).data.user.roles.includes('organizer'),false);
-  assert.equal((await call('/role-requests/'+created.data.id,'PATCH',{approve:true},'second')).status,403);
-  const db=new SupabaseStore(env);assert.equal((await db.rpc('campus_decide_role_request',{p_admin_id:people.student,p_request_id:created.data.id,p_approve:true})).status,'forbidden');
-  assert.equal((await call('/role-requests/'+created.data.id,'PATCH',{approve:true},'admin')).status,200);
-  assert.equal((await call('/auth/me')).data.user.roles.includes('organizer'),true);
+  assert.equal((await pg.query('SELECT count(*)::int n FROM campus_role_requests')).rows[0].n,0);
+  const data=(await call('/campus')).data;assert.ok(!('requests' in data));assert.ok(!('notifications' in data));
+  assert.equal((await call('/notifications/'+uid(999),'PATCH',{})).status,404);
 });
 
 test('collaboration enforces membership and prevents sharing a private library resource',async()=>{
@@ -163,13 +162,11 @@ test('assistant uses accessible sources, abstains for private information and is
   assert.equal((await call('/assistant/'+answer.data.message.id+'/feedback','POST',{is_relevant:true})).status,200);
 });
 
-test('recovery does not reveal account existence and Google is offered only when configured',async()=>{
-  assert.equal((await call('/auth/options','GET',undefined,'anonymous')).data.google,false);
-  assert.equal((await call('/auth/google','POST',{program:'SIIA'},'anonymous')).status,503);
-  const first=await call('/auth/recover','POST',{email:'student@example.test'},'anonymous'),second=await call('/auth/recover','POST',{email:'unknown@example.test'},'anonymous');
-  assert.equal(first.status,200);assert.deepEqual(first.data,second.data);
-  assert.equal((await call('/auth/password','POST',{password:'new-password'},'anonymous')).status,401);
-  assert.equal((await call('/auth/login','POST',{email:'student@example.test',password:'password-test',program:'SIIA',remember:false},'anonymous')).response.headers.getSetCookie().some(c=>c.includes('Max-Age')),false);
+test('authentication exposes only the email-password-program flow specified in the requirements',async()=>{
+  for(const [path,method,body] of [['/auth/options','GET',undefined],['/auth/google','POST',{program:'SIIA'}],['/auth/recover','POST',{email:'student@example.test'}],['/auth/password','POST',{password:'new-password'}]]){
+    assert.equal((await call(path,method,body,'anonymous')).status,404,path);
+  }
+  assert.equal((await call('/auth/login','POST',{email:'student@example.test',password:'password-test',program:'SIIA'},'anonymous')).status,200);
 });
 
 test('the optional AI connector sends only accessible sources and refuses unrecognized citations',async()=>{
