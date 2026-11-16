@@ -5,10 +5,10 @@ Object.assign(icons,{
   file:'<path d="M14 2H5v20h14V7ZM14 2v6h5M8 13h8m-8 4h6"/>'
 });
 const emptyCampus=()=>({modules:[],announcements:[],documents:[],library:[],complaints:[],news:[],lost:[],spaces:[],resources:[],locations:[],listings:[],categories:[],transactions:[],recommendations:[],unavailable:[]});
-Object.assign(state,{workspace:emptyCampus(),workspaceError:'',tabs:{},selectedRole:'student',activeRole:'',contentQuery:'',chat:[],conversations:[],conversationId:null,chatBusy:false,locationId:null});
+Object.assign(state,{workspace:emptyCampus(),workspaceError:'',publicData:null,publicError:'',publicLoading:true,newsId:null,newsDetail:null,newsDetailError:'',newsDetailLoading:false,tabs:{},selectedRole:'student',activeRole:'',contentQuery:'',chat:[],conversations:[],conversationId:null,chatBusy:false,locationId:null});
 if(!location.hash)state.page='landing';
 if(new URLSearchParams(location.search).get('auth')==='failed')authNotice='Le lien de connexion est expiré ou invalide. Réessayez.';
-Object.assign(pageTitles,{landing:'Accueil',login:'Connexion',register:'Créer un compte','choose-profile':'Choix du profil',announcements:'Annonces',documents:'Documents de cours',library:'Smart Library',complaints:'Réclamations',news:'Actualités',lost:'Lost & Found',collaboration:'Collaboration',assistant:'FPK GPT',recommendations:'Pour vous',map:'FPK Map',marketplace:'Marketplace'});
+Object.assign(pageTitles,{landing:'Accueil',login:'Connexion',register:'Créer un compte','choose-profile':'Choix du profil',announcements:'Annonces',documents:'Documents de cours',library:'Smart Library',complaints:'Réclamations',news:'Actualités',lost:'Lost & Found',collaboration:'Collaboration',assistant:'FPK GPT',recommendations:'Pour vous',map:'FPK Map',marketplace:'Marketplace',campus:'Découvrir la FPK','news-detail':'Actualité'});
 const brand=()=>`<a class="brand" href="#landing" aria-label="CampusConnect, accueil"><span class="brand-mark">${icon('grad')}</span><span class="brand-name">Campus<span>Connect</span><small>FPK · USMS</small></span></a>`;
 const notice=(message,kind='')=>message?`<div class="notice ${kind}" role="${kind==='error'?'alert':'status'}">${esc(message)}</div>`:'';
 const badge=(text,color='')=>`<span class="tag ${color}">${esc(text)}</span>`;
@@ -22,9 +22,41 @@ const tabs=(group,items,selected)=>`<div class="tabs" role="group" aria-label="F
 const getTab=(group,fallback)=>state.tabs[group]||fallback;
 const roleAllowed=role=>role==='teacher'?(hasRole('teacher')||hasRole('department_head')):hasRole(role);
 const basePage=currentPage,baseAction=onAction,baseDepartment=department,baseProfile=profilePage;
-let refreshSequence=0;
+let refreshSequence=0,publicRequest=null;
+const publicView=()=>['landing','campus','news','news-detail','events','login','register','help'].includes(state.page);
+function visitorData(data){
+  const programs=data?.programs||[];
+  const selected=programs.find(p=>p.id===state.program)||programs[0];
+  state.program=selected?.id||'';
+  return {user:null,programs,events:data?.events||[],semesters:[],modules:[],schedule:[],program:state.program,semester:'',semesterId:'',academicYear:'',demoEnabled:false};
+}
+async function loadPublicSite(force=false){
+  if(publicRequest)return publicRequest;
+  if(state.publicData&&!force)return state.publicData;
+  state.publicLoading=true;
+  publicRequest=(async()=>{
+    try{
+      const data=await api('/public');
+      if(!Array.isArray(data.programs)||!Array.isArray(data.news)||!Array.isArray(data.events))throw new Error('Les informations publiques sont momentanément indisponibles.');
+      state.publicData=data;state.publicError='';
+    }catch(error){state.publicError='Les informations publiques sont momentanément indisponibles. Réessayez dans un instant.'}
+    finally{
+      state.publicLoading=false;publicRequest=null;
+      if(!state.user)state.data=visitorData(state.publicData);
+      if(publicView())render();
+    }
+    return state.publicData;
+  })();
+  return publicRequest;
+}
 refresh=async function(){
   const sequence=++refreshSequence;
+  if(!state.user){
+    state.workspace=emptyCampus();state.activeRole='';state.error=null;
+    await loadPublicSite(true);
+    if(sequence===refreshSequence){state.data=visitorData(state.publicData);render()}
+    return;
+  }
   try{
     const data=await api('/bootstrap?program='+encodeURIComponent(state.program)+'&semester='+encodeURIComponent(state.semesterId||state.semester));
     if(sequence!==refreshSequence)return;
@@ -34,11 +66,50 @@ refresh=async function(){
       try{const workspace=await api('/campus');if(sequence===refreshSequence){state.workspace=workspace;state.workspaceError=''}}catch(error){state.workspaceError=error.message}
     }else{state.workspace=emptyCampus();state.activeRole=''}
   }catch(error){state.error=error.message}
+  await loadPublicSite(true);
   if(sequence===refreshSequence)render();
 };
 
+function publicHeader(active='landing'){
+  return `<header class="public-header">${brand()}<nav aria-label="Navigation publique"><a href="#landing" ${active==='landing'?'aria-current="page" class="active"':''}>Accueil</a><a href="#campus" ${active==='campus'?'aria-current="page" class="active"':''}>Découvrir la FPK</a><a href="#news" ${active==='news'?'aria-current="page" class="active"':''}>Actualités</a><a href="#events" ${active==='events'?'aria-current="page" class="active"':''}>Événements</a></nav><div class="public-actions">${state.user?'<a class="btn" href="#dashboard">Mon espace '+icon('arrow')+'</a>':'<a class="btn secondary small" href="#login">Se connecter</a><a class="btn dark small" href="#register">Créer un compte</a>'}</div></header>`;
+}
+function publicMobileNav(){return '<nav class="public-mobile-nav" aria-label="Navigation visiteurs"><a href="#landing">Accueil</a><a href="#campus">La FPK</a><a href="#news">Actualités</a><a href="#events">Événements</a></nav>'}
+function publicShell(content,active){return `<div class="public-shell"><div class="utility-bar"><span>Faculté Polydisciplinaire de Khouribga · Université Sultan Moulay Slimane</span></div>${publicHeader(active)}${publicMobileNav()}<main class="public-content" id="main-content">${content}</main>${publicFooter()}</div>`}
+function publicStatus(){
+  if(state.publicLoading)return '<p class="public-status" role="status">Chargement des informations du campus…</p>';
+  if(state.publicError)return notice(state.publicError,'error')+action('retry-public','Réessayer','btn secondary');
+  return '';
+}
+function campusIntroSection(){return `<section class="public-section campus-intro"><div><div class="eyebrow">OUVERT À TOUS LES VISITEURS</div><h2>Découvrez la Faculté Polydisciplinaire de Khouribga</h2><p>La FPK fait partie de l’Université Sultan Moulay Slimane. Retrouvez ses départements, ses filières et les nouvelles de la vie du campus, sans avoir besoin de vous connecter.</p><a class="btn secondary" href="#campus">Découvrir la FPK ${icon('arrow')}</a></div><div class="visitor-access"><span class="module-icon">${icon('building')}</span><h3>Un accès public aux informations du campus</h3><p>Les actualités publiées et le catalogue d’événements sont consultables librement. Les services pédagogiques et les espaces personnels sont réservés aux membres authentifiés.</p></div></section>`}
+const publicNewsCategories={campus:'Vie du campus',research:'Recherche',clubs:'Clubs',partners:'Partenaires'};
+function publicNewsCard(row){return `<article class="event-card public-news-card">${row.cover_url?`<img class="news-cover" src="${esc(row.cover_url)}" alt="Illustration de ${esc(row.title)}" loading="lazy">`:`<div class="news-placeholder">${icon('building')}</div>`}<div class="event-body"><div class="public-news-meta">${badge(publicNewsCategories[row.category]||'Actualité')}<time datetime="${esc(row.published_at)}">${shortDate(row.published_at)}</time></div><h3>${esc(row.title)}</h3><p>${esc(row.content.slice(0,160))}${row.content.length>160?'…':''}</p>${rowButton('public-news',row.id,'Lire l’actualité')}</div></article>`}
+function publicNewsSection(){
+  const rows=state.publicData?.news||[];
+  return `<section class="public-section public-news-preview"><div class="section-heading"><div><div class="eyebrow">LA VIE À LA FPK</div><h2>Actualités du campus</h2></div><a href="#news" class="text-btn">Toutes les actualités ${icon('arrow')}</a></div>${publicStatus()}${state.publicData?.newsAvailable===false?notice('Les actualités ne sont pas encore disponibles.'):rows.length?`<div class="event-grid">${rows.slice(0,3).map(publicNewsCard).join('')}</div>`:!state.publicLoading&&!state.publicError?empty('Aucune actualité publiée','Les prochaines nouvelles du campus apparaîtront ici.','mail'):''}</section>`;
+}
+function campusPage(){
+  const data=state.publicData;
+  return heading('Découvrir la FPK','Informations publiques sur notre faculté.')+`<section class="public-campus-hero"><img src="/assets/fpk-campus.jpg" alt="Façade de la Faculté Polydisciplinaire de Khouribga"><div><div class="eyebrow">KHOURIBGA · MAROC</div><h2>Faculté Polydisciplinaire de Khouribga</h2><p>Un établissement de l’Université Sultan Moulay Slimane. CampusConnect rassemble les informations pédagogiques et les services de la communauté étudiante de la FPK.</p><a href="#news" class="btn">Lire les actualités ${icon('arrow')}</a></div></section>${publicStatus()}${data?`<section class="public-campus-section"><div class="section-heading"><h2>Départements</h2></div><div class="program-grid">${data.departments.map(d=>`<article class="program-card"><span>${esc(d.code)}</span><h3>${esc(d.name)}</h3>${d.description?`<p>${esc(d.description)}</p>`:''}</article>`).join('')||'<p class="subtle">Les départements seront présentés ici.</p>'}</div></section><section class="public-campus-section"><div class="section-heading"><h2>Filières de la faculté</h2></div><div class="program-grid">${data.programs.map(p=>`<article class="program-card"><span>${esc(p.id)}</span><h3>${esc(p.name)}</h3><p>${esc(p.department)}</p>${p.description?`<p>${esc(p.description)}</p>`:''}</article>`).join('')||'<p class="subtle">Les filières seront présentées ici.</p>'}</div></section>`:''}<div class="notice public-access-note">La consultation de ces informations et des actualités est libre. La connexion est nécessaire pour accéder aux documents de cours, aux réclamations et aux services personnels.</div>`;
+}
+function publicNewsPage(){
+  const category=getTab('public-news','all'),rows=(state.publicData?.news||[]).filter(row=>matchesQuery(row)&&(category==='all'||row.category===category));
+  return heading('Actualités du campus','Les nouvelles de la FPK, accessibles à tous sans connexion.')+tabs('public-news',[['all','Toutes'],...Object.entries(publicNewsCategories)],category)+searchBox('Rechercher une actualité…')+publicStatus()+(state.publicData?.newsAvailable===false?notice('Les actualités ne sont pas encore disponibles.'):rows.length?`<div class="event-grid public-news-grid">${rows.map(publicNewsCard).join('')}</div>`:!state.publicLoading&&!state.publicError?empty('Aucune actualité pour cette sélection','Essayez une autre recherche ou revenez prochainement.','mail'):'');
+}
+function publicEventsPage(){return publicStatus()+(!state.data?'':notice('Le catalogue est public. Les inscriptions sont réservées aux étudiants authentifiés.')+eventPage())}
+async function loadPublicNews(id){
+  if(!id)return;
+  state.newsDetailLoading=true;
+  try{const result=await api('/public/news/'+encodeURIComponent(id));if(state.newsId===id){state.newsDetail=result.news;state.newsDetailError=''}}
+  catch(error){if(state.newsId===id){state.newsDetail=null;state.newsDetailError='Cette actualité est indisponible ou n’est plus publiée.'}}
+  finally{if(state.newsId===id){state.newsDetailLoading=false;if(state.page==='news-detail')render()}}
+}
+function publicNewsDetailPage(){
+  const row=state.newsDetail;
+  return `<a href="#news" class="text-btn public-back-link">${icon('arrow')} Toutes les actualités</a>`+(state.newsDetailLoading?'<p role="status">Chargement de l’actualité…</p>':row?`<article class="public-article"><header><div class="eyebrow">ACTUALITÉS · FPK</div><h1>${esc(row.title)}</h1><div class="public-news-meta">${badge(publicNewsCategories[row.category]||'Actualité')}<time datetime="${esc(row.published_at)}">${shortDate(row.published_at)}</time></div></header>${row.cover_url?`<img class="public-article-cover" src="${esc(row.cover_url)}" alt="Illustration de ${esc(row.title)}">`:''}<div class="public-article-content">${row.content.split(/\n{2,}/).map(paragraph=>`<p>${esc(paragraph).replace(/\n/g,'<br>')}</p>`).join('')}</div></article>`:empty('Actualité indisponible',state.newsDetailError||'Cette actualité est introuvable.','mail',action('retry-public-news','Réessayer','btn secondary')));
+}
+
 function landing(){
-  const published=nextEvents().slice(0,3);
+  const published=(state.publicData?.events||[]).filter(isFuture).slice(0,3);
   const services=[
     ['building','Département, modules et emploi du temps','Consultez le responsable de votre département, les modules et les séances de votre filière.','department','MVP 1'],
     ['ticket','Événements du campus','Découvrez les conférences et ateliers, puis gérez vos inscriptions.','events','MVP 1'],
@@ -47,7 +118,7 @@ function landing(){
     ['book','Smart Library et collaboration','Recherchez des ressources et partagez des projets entre filières.','library','MVP 2'],
     ['spark','Assistant et services campus','Accédez à FPK GPT, aux recommandations, au plan du campus et au Marketplace étudiant.','assistant','MVP 3']
   ];
-  return `<div class="landing"><div class="utility-bar"><span>Faculté Polydisciplinaire de Khouribga · Université Sultan Moulay Slimane</span></div><header class="public-header">${brand()}<nav aria-label="Navigation publique"><a class="active" href="#landing">Accueil</a><a href="#department">Mon département</a><a href="#events">Événements</a><a href="#services-campus">Services campus</a></nav><div class="public-actions">${state.user?'<a class="btn" href="#dashboard">Mon espace '+icon('arrow')+'</a>':'<a class="btn secondary small" href="#login">Se connecter</a><a class="btn dark small" href="#register">Créer un compte</a>'}</div></header><main id="main-content"><section class="landing-hero"><div class="landing-copy"><div class="eyebrow"><span class="gold-line"></span>CAMPUSCONNECT · FPK</div><h1>Le portail étudiant<br><em>de la FPK.</em></h1><p>Votre département, vos modules, votre emploi du temps et les services de la vie étudiante, personnalisés selon votre filière.</p><div class="hero-actions"><a class="btn" href="#${state.user?'dashboard':'login'}">${state.user?'Accéder à mon espace':'Se connecter'} ${icon('arrow')}</a><a class="btn secondary" href="#events">Consulter les événements ${icon('ticket')}</a></div></div><div class="landing-visual"><img src="/assets/fpk-campus.jpg" alt="Façade de la Faculté Polydisciplinaire de Khouribga"></div></section><section class="public-events" aria-label="Prochains événements"><div class="strip-label">ÉVÉNEMENTS<br>DU CAMPUS ${icon('arrow')}</div>${published.length?published.map(e=>`<button class="strip-event" data-action="detail" data-id="${esc(e.id)}"><span class="strip-day">${esc(e.date.slice(-2))}<small>${fmtDate(e.date,{month:'long'})}</small></span><span><small>${icon('clock')}${esc(e.time)} — ${esc(e.endTime)}</small><strong>${esc(e.title)}</strong><small>${esc(e.location)}</small></span></button>`).join(''):'<div class="strip-empty">Aucun événement à venir n’est publié pour le moment.</div>'}</section><section class="public-section" id="services-campus"><div class="section-heading"><div><div class="eyebrow">VOTRE VIE À LA FPK</div><h2>Les services de CampusConnect</h2></div></div><div class="service-grid">${services.map(([i,title,text,page])=>`<a class="service-card" href="#${state.user?page:page==='events'?'events':'login'}"><span class="module-icon">${icon(i)}</span><h3>${title}</h3><p>${text}</p><span class="text-btn">Consulter ${icon('arrow')}</span></a>`).join('')}</div></section></main>${publicFooter()}</div>`;
+  return `<div class="landing"><div class="utility-bar"><span>Faculté Polydisciplinaire de Khouribga · Université Sultan Moulay Slimane</span></div>${publicHeader('landing')}${publicMobileNav()}<main id="main-content"><section class="landing-hero"><div class="landing-copy"><div class="eyebrow"><span class="gold-line"></span>CAMPUSCONNECT · FPK</div><h1>Le portail étudiant<br><em>de la FPK.</em></h1><p>Votre département, vos modules, votre emploi du temps et les services de la vie étudiante, personnalisés selon votre filière.</p><div class="hero-actions"><a class="btn" href="#${state.user?'dashboard':'login'}">${state.user?'Accéder à mon espace':'Se connecter'} ${icon('arrow')}</a><a class="btn secondary" href="#news">Lire les actualités ${icon('mail')}</a></div></div><div class="landing-visual"><img src="/assets/fpk-campus.jpg" alt="Façade de la Faculté Polydisciplinaire de Khouribga"></div></section><section class="public-events" aria-label="Prochains événements"><div class="strip-label">ÉVÉNEMENTS<br>DU CAMPUS ${icon('arrow')}</div>${published.length?published.map(e=>`<button class="strip-event" data-action="detail" data-id="${esc(e.id)}"><span class="strip-day">${esc(e.date.slice(-2))}<small>${fmtDate(e.date,{month:'long'})}</small></span><span><small>${icon('clock')}${esc(e.time)} — ${esc(e.endTime)}</small><strong>${esc(e.title)}</strong><small>${esc(e.location)}</small></span></button>`).join(''):'<div class="strip-empty">Aucun événement à venir n’est publié pour le moment.</div>'}</section>${campusIntroSection()}${publicNewsSection()}<section class="public-section" id="services-campus"><div class="section-heading"><div><div class="eyebrow">VOTRE VIE À LA FPK</div><h2>Les services de CampusConnect</h2></div></div><div class="service-grid">${services.map(([i,title,text,page])=>`<a class="service-card" href="#${state.user?page:['events','news'].includes(page)?page:'login'}"><span class="module-icon">${icon(i)}</span><h3>${title}</h3><p>${text}</p><span class="text-btn">Consulter ${icon('arrow')}</span></a>`).join('')}</div></section></main>${publicFooter()}</div>`;
 }
 function publicFooter(){return `<footer class="public-footer">${brand()}<p>Faculté Polydisciplinaire de Khouribga<br>Université Sultan Moulay Slimane</p><div><a href="#help">Aide et confidentialité</a><span>© ${new Date().getFullYear()} CampusConnect</span></div></footer>`}
 function authPage(){
@@ -58,11 +129,16 @@ function chooseProfile(){return `<div class="profile-choice" id="main-content">$
 const campusNav=[['dashboard','home','Tableau de bord'],['department','building','Mon département'],['modules','book','Modules'],['schedule','calendar','Emploi du temps'],['announcements','mail','Annonces'],['documents','file','Documents'],['complaints','help','Réclamations'],['events','ticket','Événements']];
 const communityNav=[['news','home','Actualités'],['lost','search','Lost & Found'],['library','book','Smart Library'],['collaboration','users','Collaboration'],['map','pin','FPK Map'],['marketplace','briefcase','Marketplace'],['assistant','spark','FPK GPT'],['recommendations','grad','Pour vous']];
 render=function(){
-  const allowedPages=new Set(['landing','login','register','choose-profile','dashboard','department','modules','schedule','announcements','documents','library','complaints','events','registrations','organizer','news','lost','collaboration','assistant','recommendations','map','marketplace','profile','help','services-campus']);
+  const articleMatch=state.page.match(/^news\/([0-9a-f-]{36})$/i);
+  if(articleMatch){const id=articleMatch[1];state.page='news-detail';if(state.newsId!==id){state.newsId=id;state.newsDetail=null;state.newsDetailError='';state.newsDetailLoading=true;loadPublicNews(id)}}
+  const allowedPages=new Set(['landing','login','register','choose-profile','dashboard','department','modules','schedule','announcements','documents','library','complaints','events','registrations','organizer','news','lost','collaboration','assistant','recommendations','map','marketplace','profile','help','services-campus','campus','news-detail']);
   if(!allowedPages.has(state.page)){state.page='landing';history.replaceState(null,'','#landing')}
   if(state.page==='services-campus'){state.page='landing';render();document.getElementById('services-campus')?.scrollIntoView?.({behavior:'smooth'});return}
   const page=state.page;
   if(page==='landing'){document.getElementById('app').innerHTML=landing();return}
+  if(page==='campus'){document.getElementById('app').innerHTML=publicShell(campusPage(),'campus');return}
+  if(page==='news-detail'){document.getElementById('app').innerHTML=publicShell(publicNewsDetailPage(),'news');return}
+  if(!state.user&&['news','events','help'].includes(page)){document.getElementById('app').innerHTML=publicShell(page==='news'?publicNewsPage():page==='events'?publicEventsPage():helpPage(),page);return}
   if(['login','register'].includes(page)){document.getElementById('app').innerHTML=authPage();return}
   if(page==='choose-profile'&&state.user){document.getElementById('app').innerHTML=chooseProfile();return}
   if(!state.user&&!['events','help'].includes(page)){
@@ -109,7 +185,7 @@ function resourceSpec(kind,parent=''){
     document:{title:'Publier un document',path:'/documents',fileKey:'file_id',fields:moduleSelect+inputField('title','Titre')+selectField('document_type','Type',[['course','Cours'],['td','TD'],['tp','TP'],['exam','Examen'],['handout','Polycopié'],['other','Autre']])+textField('description','Description',0)+attachment('Document de cours',true)},
     library:{title:'Partager une ressource',path:'/library',fileKey:'file_id',fields:inputField('title','Titre')+inputField('authors','Auteur(s)','text',false)+selectField('resource_type','Type',[['book','Livre'],['article','Article'],['project_report','Rapport'],['course_support','Support de cours'],['website','Site web'],['other','Autre']])+selectField('visibility','Visibilité',[['all_students','Toutes les filières'],['selected_programs','Ma filière'],['private','Moi uniquement']])+inputField('external_url','Lien externe','url',false)+textField('abstract','Présentation')+attachment()},
     complaint:{title:'Nouvelle réclamation',path:'/complaints',fields:moduleSelect+selectField('complaint_type','Catégorie',[['pedagogical','Pédagogique'],['technical','Technique']])+inputField('subject','Objet')+textField('description','Description')},
-    news:{title:'Publier une actualité',path:'/news',fileKey:'cover_file_id',fields:inputField('title','Titre')+selectField('category','Catégorie',[['campus','Vie étudiante'],['research','Recherche'],['clubs','Clubs'],['partners','Partenaires']])+textField('content','Contenu',20)+attachment('Photo de couverture',false,true)},
+    news:{title:'Publier une actualité',path:'/news',fileKey:'cover_file_id',fields:'<div class="notice span2">Cette actualité et sa photo seront visibles par tous les visiteurs, sans compte.</div>'+ inputField('title','Titre')+selectField('category','Catégorie',[['campus','Vie étudiante'],['research','Recherche'],['clubs','Clubs'],['partners','Partenaires']])+textField('content','Contenu',20)+attachment('Photo de couverture',false,true)},
     lost:{title:'Déclarer un objet',path:'/lost-found',fileKey:'image_file_id',fields:inputField('title','Objet')+selectField('item_type','Déclaration',[['lost','Objet perdu'],['found','Objet trouvé']])+inputField('location_text','Lieu')+inputField('item_date','Date','date',false)+inputField('contact_info','Contact à partager')+textField('description','Description')+attachment('Photo de l’objet',false,true)},
     space:{title:'Créer un projet',path:'/collaboration',fields:inputField('title','Nom du projet')+inputField('topic','Thématique','text',false)+textField('description','Présentation')},
     share:{title:'Partager avec le projet',path:'/collaboration/'+encodeURIComponent(parent)+'/resources',fileKey:'file_id',fields:inputField('title','Titre')+selectField('library_resource_id','Ressource de bibliothèque',[['','Choisir un fichier ci-dessous'],...state.workspace.library.filter(r=>r.visibility==='all_students').map(r=>[r.id,r.title])],false)+textField('description','Description')+attachment()},
@@ -128,6 +204,9 @@ async function openListing(id){const r=state.workspace.listings.find(x=>x.id===i
 authModal=function(){state.page=state.authMode==='register'?'register':'login';location.hash=state.page;closeModal();render()};
 onAction=async function(name,target){const id=target.dataset.id,value=target.dataset.value;
   switch(name){
+    case'public-news':location.hash='news/'+id;return;
+    case'retry-public':await loadPublicSite(true);return;
+    case'retry-public-news':await loadPublicNews(state.newsId);return;
     case'auth':state.page='login';location.hash='login';render();return;
     case'auth-register':state.page='register';location.hash='register';render();return;
     case'show-password':{const input=target.closest('.password-field').querySelector('input');input.type=input.type==='password'?'text':'password';target.textContent=input.type==='password'?'Afficher':'Masquer';return}
@@ -192,3 +271,4 @@ let contentSearchTimer;
 document.addEventListener('input',event=>{if(event.target.id!=='content-search')return;const value=event.target.value,position=event.target.selectionStart;clearTimeout(contentSearchTimer);contentSearchTimer=setTimeout(()=>{state.contentQuery=value;render();const input=document.getElementById('content-search');input?.focus();input?.setSelectionRange(position,position)},200)});
 window.addEventListener('hashchange',()=>{state.contentQuery='';if(state.page==='assistant'&&state.user)loadChats();if(location.hash==='#services-campus')document.getElementById('services-campus')?.scrollIntoView?.({behavior:'smooth'})});
 render();
+loadPublicSite();

@@ -71,7 +71,9 @@ test('compatibility migration preserves records, policies and the existing UUID 
 });
 
 test('bootstrap reads existing programs, departments, modules and nonstandard session times',async()=>{
-  const result=await call('/bootstrap?program='+code+'&semester=S1');assert.equal(result.status,200);
+  assert.equal((await call('/bootstrap?program='+code+'&semester=S1')).status,401);
+  const session=await login('student');
+  const result=await call('/bootstrap?program='+code+'&semester=S1','GET',null,session.cookie);assert.equal(result.status,200);
   assert.equal(result.data.program,code);assert.equal(result.data.semester,'S1');assert.equal(result.data.semesterId,ids.semester);
   assert.equal(result.data.modules[0][0],'M101');assert.equal(result.data.modules[0][3],4.5);
   assert.equal(result.data.programs.find(p=>p.id===code).head,'head Test');

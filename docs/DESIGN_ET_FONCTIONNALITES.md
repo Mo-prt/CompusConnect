@@ -19,7 +19,11 @@ Références : sections 4, 6, 8, 9, 10 et 15 du cahier des charges fourni. Les f
 
 ## Accueil public
 
-L’accueil présente uniquement le portail, la photo de la faculté, l’accès inscription/connexion, les événements publiés et les services F01 à F08. Il ne présente ni catalogue commercial de formations, ni admissions, recherche institutionnelle, carrières ou offres partenaires indépendantes du portail.
+À la demande de l’équipe, l’accueil comporte un accès visiteurs : présentation de la FPK, photo de la faculté, départements et filières, aperçu des actualités, liste publique filtrable et lecture intégrale des articles, ainsi que les événements publiés. Aucune authentification n’est nécessaire pour ces informations. Il ne présente ni catalogue commercial de formations, ni admissions, recherche institutionnelle, carrières ou offres partenaires indépendantes du portail.
+
+Seuls les articles au statut `published` dont la date de publication est atteinte sont exposés. Pour une ancienne actualité sans date de publication, la date de création est utilisée. Les publications futures, brouillons et articles retirés sont exclus de la liste, du détail et des images publiques.
+
+Le formulaire de publication informe les enseignants et organisateurs qu’une actualité et son image seront visibles par tous les visiteurs. Les annonces pédagogiques, documents, réclamations, conversations et données de profils ne deviennent pas publics. Les images d’articles sont servies par une route qui vérifie leur rattachement à une actualité publiée, sans rendre le bucket public.
 
 Les textes et éléments de marque miniers sont retirés. La navigation ne comporte plus de pages promotionnelles séparées. Les photos et annonces publiées par les utilisateurs dans les modules prévus restent liées à leur contenu.
 
@@ -29,7 +33,7 @@ Les textes et éléments de marque miniers sont retirés. La navigation ne compo
 - Option de connexion persistante dans le formulaire ; les cookies de session restent gérés côté serveur.
 - Demande d’un rôle privilégié et interface d’approbation des demandes.
 - Centre de notifications et actions associées.
-- Pages publiques de présentation institutionnelle ou de promotion de formations.
+- Pages d’admissions, de carrières ou de promotion commerciale de formations.
 - Écran de création de lieux depuis l’interface étudiante ; la carte utilise les lieux paramétrés dans la base.
 
 Les anciennes routes applicatives de connexion tierce, de récupération, de demandes de rôles et de notifications ne sont plus exposées. Les migrations et tables historiques ne sont pas supprimées : cette correction ne détruit aucune donnée.
@@ -57,7 +61,7 @@ Les informations proviennent de la base. Aucun compteur ou compte de démonstrat
 
 Conserver les migrations existantes : `20261111000100_existing_schema.sql` pour le socle et `20261116000100_campus_services.sql` pour les services. Elles restent applicables aux tables CampusConnect existantes. Les tables historiques de demandes et de notifications ne sont plus utilisées par les écrans ; elles sont préservées pour ne pas perdre d’anciennes données.
 
-Cette correction de périmètre n’exige pas de nouvelle migration SQL sur une base déjà configurée. Les nouveaux fichiers ou thèmes ne modifient pas automatiquement la base distante.
+L’accès visiteurs utilise les tables existantes et accepte aussi l’ancien schéma de `news_posts` sans colonne de catégorie. Cette extension n’exige pas de nouvelle migration SQL sur une base déjà configurée. Les nouveaux fichiers ou thèmes ne modifient pas automatiquement la base distante.
 
 Dans **Authentication → URL Configuration**, autoriser `http://localhost:8787` pour les tests et l’URL du site déployé. Les nouveaux profils reçoivent le rôle étudiant ; les profils enseignants, chefs de département et organisateurs sont attribués par l’établissement, puis vérifiés côté serveur.
 

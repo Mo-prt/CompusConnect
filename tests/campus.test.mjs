@@ -14,7 +14,7 @@ let pg,originalFetch;const accounts=[],sessions={};
 const extraTables=['files','announcements','announcement_targets','course_documents','library_resources','library_resource_programs','complaints','complaint_messages','news_posts','lost_found_items','collaboration_spaces','collaboration_members','shared_resources','campus_discussions','campus_locations','marketplace_listings','marketplace_categories','marketplace_images','marketplace_transactions','notifications','campus_role_requests','recommendations','recommendation_feedback','resource_views','chat_conversations','chat_messages','campus_message_citations','campus_chat_feedback'];
 async function call(path,method='GET',body,actor='student',headers={}){
   const response=await handleApi(new Request('https://campus.test/api'+path,{method,headers:{'Content-Type':'application/json',...(sessions[actor]?{Cookie:sessions[actor]}:{}),...headers},...(body===undefined?{}:{body:typeof body==='string'||body instanceof Uint8Array?body:JSON.stringify(body)})}),env);
-  const data=response.headers.get('Content-Type')?.includes('json')?await response.json():await response.text();return {status:response.status,data,response};
+  const data=method==='HEAD'?null:response.headers.get('Content-Type')?.includes('json')?await response.json():await response.text();return {status:response.status,data,response};
 }
 before(async()=>{
   pg=new PGlite();await pg.exec('CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role BYPASSRLS;');
@@ -182,4 +182,65 @@ test('the optional AI connector sends only accessible sources and refuses unreco
     const response=await call('/assistant','POST',{question:'Deep Learning et salle du cours'},'second');
     assert.equal(response.status,200,JSON.stringify(response.data));assert.equal(response.data.mode,'rag');assert.equal(response.data.message.abstained,true);assert.ok(!response.data.message.content.includes('Invented'));assert.equal(calls.length,1);
   }finally{globalThis.fetch=fixture;delete env.FASTAPI_URL;delete env.FASTAPI_TOKEN}
+});
+
+const publicIds={published:uid(600),draft:uid(601),scheduled:uid(602),undated:uid(603),futureCreated:uid(604)};
+let publicCover;
+test('visitors can read campus information and only published news without any Auth call or private DTO fields',async()=>{
+  const image=await fs.readFile(new URL('../src/assets/fpk-campus.jpg',import.meta.url));
+  const upload=await call('/uploads?name=actualite.jpg','POST',image,'teacher',{'Content-Type':'image/jpeg'});assert.equal(upload.status,201);publicCover=upload.data.file.id;
+  const past=new Date(Date.now()-3600000).toISOString(),future=new Date(Date.now()+86400000).toISOString();
+  for(const [newsId,status,publishedAt,createdAt]of [[publicIds.published,'published',past,past],[publicIds.draft,'draft',past,past],[publicIds.scheduled,'published',future,past],[publicIds.undated,'published',null,past],[publicIds.futureCreated,'published',null,future]]){
+    await pg.query('INSERT INTO news_posts(id,author_id,title,content,status,category,published_at,created_at,cover_file_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)',[newsId,people.teacher,'Actualité '+newsId,'Informations publiques sur la vie du campus.',status,'campus',publishedAt,createdAt,publicCover]);
+  }
+  const fixture=globalThis.fetch,paths=[];globalThis.fetch=async(url,options)=>{paths.push(new URL(url).pathname);return fixture(url,options)};
+  try{
+    const result=await call('/public','GET',undefined,'anonymous',{Cookie:'campus_access_token=invalid; campus_refresh_token=expired'});
+    assert.equal(result.status,200,JSON.stringify(result.data));assert.equal(result.data.institution.name,'Faculté Polydisciplinaire de Khouribga');
+    assert.ok(result.data.programs.some(p=>p.id==='SIIA'));assert.ok(result.data.departments.some(d=>d.name==='Informatique'));
+    const ids=result.data.news.map(n=>n.id);assert.ok(ids.includes(publicIds.published));assert.ok(ids.includes(publicIds.undated));
+    for(const hidden of [publicIds.draft,publicIds.scheduled,publicIds.futureCreated])assert.ok(!ids.includes(hidden));
+    assert.ok(!paths.some(path=>path.startsWith('/auth/')));assert.deepEqual(result.response.headers.getSetCookie(),[]);
+    for(const key of ['modules','schedule','profiles','complaints','user','roles','sessions'])assert.ok(!(key in result.data));
+    for(const row of result.data.news)assert.deepEqual(Object.keys(row).sort(),['id','title','content','category','published_at','cover_url'].sort());
+    for(const row of result.data.programs)for(const key of ['uuid','department_id','email','head'])assert.ok(!(key in row));
+    assert.ok(!JSON.stringify(result.data).includes('sb_secret'));
+    assert.equal((await call('/bootstrap','GET',undefined,'anonymous')).status,401);
+    assert.equal((await call('/campus','GET',undefined,'anonymous')).status,401);
+    assert.equal((await call('/assistant','GET',undefined,'anonymous')).status,401);
+  }finally{globalThis.fetch=fixture}
+});
+
+test('public article and cover routes reject drafts, scheduled posts, arbitrary files and withdrawn articles',async()=>{
+  const detail=await call('/public/news/'+publicIds.published,'GET',undefined,'anonymous');assert.equal(detail.status,200);
+  assert.match(detail.data.news.content,/Informations publiques/);assert.equal(detail.data.news.cover_url,'/api/public/news/'+publicIds.published+'/cover');
+  const cover=await call(detail.data.news.cover_url.slice(4),'GET',undefined,'anonymous');assert.equal(cover.status,200);assert.equal(cover.response.headers.get('Content-Type'),'image/jpeg');assert.equal(cover.response.headers.get('Cache-Control'),'no-store');
+  for(const newsId of [publicIds.draft,publicIds.scheduled,publicIds.futureCreated]){
+    assert.equal((await call('/public/news/'+newsId,'GET',undefined,'anonymous')).status,404);
+    assert.equal((await call('/public/news/'+newsId+'/cover','GET',undefined,'anonymous')).status,404);
+  }
+  assert.equal((await call('/public/files/'+privateFile,'GET',undefined,'anonymous')).status,404);
+  assert.equal((await call('/files/'+privateFile,'GET',undefined,'anonymous')).status,401);
+  assert.equal((await call('/public/news/'+privateFile+'/cover','GET',undefined,'anonymous')).status,404);
+  assert.equal((await call('/public/news/not-a-uuid','GET',undefined,'anonymous')).status,404);
+  assert.equal((await call('/public/news/'+publicIds.published,'HEAD',undefined,'anonymous')).data,null);
+  assert.equal((await call('/public','POST',{title:'Unauthorized edit'},'anonymous')).status,405);
+  await pg.query("UPDATE news_posts SET status='draft' WHERE id=$1",[publicIds.published]);
+  assert.equal((await call('/public/news/'+publicIds.published,'GET',undefined,'anonymous')).status,404);
+  assert.equal((await call('/public/news/'+publicIds.published+'/cover','GET',undefined,'anonymous')).status,404);
+});
+
+test('public information remains available when the optional news table is not configured',async()=>{
+  const fixture=globalThis.fetch;
+  globalThis.fetch=async(url,options)=>new URL(url).pathname==='/rest/v1/news_posts'?Response.json({code:'PGRST205'},{status:404}):fixture(url,options);
+  try{const result=await call('/public','GET',undefined,'anonymous');assert.equal(result.status,200);assert.equal(result.data.newsAvailable,false);assert.deepEqual(result.data.news,[]);assert.ok(result.data.programs.length>0)}
+  finally{globalThis.fetch=fixture}
+});
+
+test('public news also supports the original schema without an optional category column',async()=>{
+  await pg.exec('BEGIN; ALTER TABLE news_posts DROP COLUMN category;');
+  try{
+    const result=await call('/public','GET',undefined,'anonymous');assert.equal(result.status,200);assert.ok(result.data.news.length>0);assert.ok(result.data.news.every(row=>row.category==='campus'));
+    const detail=await call('/public/news/'+publicIds.undated,'GET',undefined,'anonymous');assert.equal(detail.status,200);assert.equal(detail.data.news.category,'campus');
+  }finally{await pg.exec('ROLLBACK;')}
 });

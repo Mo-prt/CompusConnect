@@ -110,7 +110,7 @@ WHERE pronamespace = 'public'::regnamespace
   AND proname LIKE 'campus_existing_%';
 ```
 
-Si `check:supabase` réussit mais que le serveur local retourne 503, ouvrir `http://localhost:8787/api/bootstrap` pour lire le message exact. Node charge `.env`, tandis que Wrangler peut utiliser `.dev.vars` : recopier les valeurs locales et redémarrer le serveur après une modification. Après un `git pull`, reconstruire avec `npm.cmd run build` pour actualiser `dist/server/index.js`.
+Si `check:supabase` réussit mais que le serveur local retourne 503, ouvrir `http://localhost:8787/api/public` pour les informations visiteurs, ou `http://localhost:8787/api/bootstrap` après connexion pour l’espace académique. Une réponse 401 sur `/api/bootstrap` avant connexion est normale. Node charge `.env`, tandis que Wrangler peut utiliser `.dev.vars` : recopier les valeurs locales et redémarrer le serveur après une modification. Après un `git pull`, reconstruire avec `npm.cmd run build` pour actualiser `dist/server/index.js`.
 
 Le transport lie la fonction native `fetch` à `globalThis`, comme requis par Workers, utilise `redirect: "manual"` et refuse explicitement les réponses 3xx. Un appel de `fetch` avec un autre récepteur peut provoquer une erreur `Illegal invocation` avant tout accès réseau. Le mode Fetch `"error"` est refusé par le moteur Workers avant tout accès réseau ; il peut donc faire réussir le diagnostic Node et échouer l’application sous Wrangler. Les clés ne sont jamais transférées automatiquement vers une URL de redirection.
 

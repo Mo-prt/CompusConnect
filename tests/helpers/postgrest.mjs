@@ -60,6 +60,8 @@ export function postgrestFixture(pg,accounts,extraTables=[]){
       const filter=(key,value)=>{
         const field=identifier(key);
         if(value.startsWith('eq.')){params.push(value.slice(3));return field+'=$'+params.length}
+        if(value==='is.null')return field+' IS NULL';
+        if(value.startsWith('lte.')){params.push(value.slice(4));return field+'<=$'+params.length}
         if(value.startsWith('in.(')&&value.endsWith(')')){
           const values=value.slice(4,-1).split(',');return field+' IN ('+values.map(v=>{params.push(v);return '$'+params.length}).join(',')+')';
         }

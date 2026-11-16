@@ -6,6 +6,8 @@ Les écrans suivent les fonctionnalités **F01 à F08 du cahier des charges** : 
 
 Les contrats et droits des routes sont décrits dans [la documentation API](docs/API.md).
 
+Les visiteurs sans compte peuvent consulter **Découvrir la FPK**, les départements et filières, les **actualités publiées avec leurs images**, et les événements. Les brouillons et publications futures restent exclus. L’espace académique, les documents et les services personnels exigent une connexion. Cette extension publique n’exige pas de nouvelle migration SQL.
+
 ## Démarrage
 
 Node.js 24. Appliquer d’abord le complément SQL, configurer les secrets puis lancer l’application selon [le guide Supabase](docs/SUPABASE.md).

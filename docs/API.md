@@ -12,9 +12,21 @@ Préfixe : `/api`. JSON UTF-8 pour les écritures, sauf les uploads binaires. Au
 | `POST /auth/logout` | Révoque la session locale et efface les cookies. |
 | `PUT /profile` | `{name,program}` ; ne permet pas de modifier les rôles. |
 
+## Accès visiteurs sans compte
+
+| Méthode et chemin | Résultat public |
+| --- | --- |
+| `GET /public` | Identité de la FPK, départements et filières actifs, événements publiés, jusqu’à 100 actualités publiées. Aucun profil, email de compte, document ou identifiant de fichier privé n’est retourné. |
+| `GET /public/news/:id` | Texte intégral, titre, catégorie et date d’une actualité publiée. Brouillons, publications futures et articles retirés : `404`. |
+| `GET /public/news/:id/cover` | Image PNG/JPEG/WebP explicitement rattachée à cette actualité publiée ; aucun accès générique aux fichiers. |
+
+Ces routes acceptent aussi `HEAD` et refusent les écritures (`405`). Elles ne lisent pas les cookies et ne renouvellent aucune session. Les réponses et images utilisent `Cache-Control: no-store`, afin de revérifier le statut de publication à chaque requête. Le bucket de stockage reste privé. La catégorie est facultative pour la compatibilité avec l’ancien schéma ; une table d’actualités absente est signalée par `newsAvailable:false` sans bloquer les autres informations publiques.
+
+La publication est définie par le statut `published` et une date atteinte (`published_at`, ou `created_at` si aucune date de publication n’existe). Le formulaire interne indique explicitement la visibilité publique des articles et images.
+
 ## Lecture de l’espace — F01 à F08
 
-`GET /bootstrap?program=<code>&semester=<UUID-ou-S9>` fournit les références, modules, EDT et événements du socle.
+`GET /bootstrap?program=<code>&semester=<UUID-ou-S9>` **exige un compte actif** et fournit les références, modules, EDT et événements du socle.
 
 `GET /campus` exige un compte actif. Il fournit uniquement les collections accessibles : `modules`, `announcements`, `documents`, `library`, `complaints`, `news`, `lost`, `spaces`, `resources`, `locations`, `listings`, `categories`, `transactions`, `recommendations`. Les modules comportent `writable`, les espaces `joined` et `memberCount`.
 

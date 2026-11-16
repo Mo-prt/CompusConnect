@@ -4,6 +4,7 @@ import {references,displayUser,bootstrap} from './storage/catalog.mjs';
 import {readSession,readCookie,sessionCookies,clearSessionCookies,logout} from './auth.mjs';
 import {moroccoInstant} from './time.mjs';
 import {handleCampus} from './campus.mjs';
+import {handlePublic} from './public.mjs';
 export {ApiError} from './errors.mjs';
 const must=(condition,message,status=400)=>{if(!condition)throw new ApiError(message,status)};
 const text=(value,max=200)=>typeof value==='string'?value.trim().slice(0,max):'';
@@ -48,6 +49,8 @@ export async function handleApi(request,env){
   };
   try{
     const db=new SupabaseStore(env),url=new URL(request.url),path=url.pathname.slice(4),method=request.method;
+    const publicResponse=await handlePublic(request,db,path);
+    if(publicResponse)return publicResponse;
     if(!['GET','HEAD'].includes(method)){
       const origin=request.headers.get('origin');must(!origin||origin===url.origin,'Origine de requête non autorisée.',403);
       if(path!=='/uploads')must(request.headers.get('content-type')?.includes('application/json'),'Format JSON requis.',415);
@@ -63,6 +66,7 @@ export async function handleApi(request,env){
     if(path==='/auth/demo')throw new ApiError('Connectez-vous avec un compte Supabase Auth. Les rôles sont attribués par l’administration.',410);
     const session=await readSession(request,db);cookies=session.cookies;
     if(path==='/auth/me'&&!session.authUser)return json({user:null});
+    if(path==='/bootstrap'&&!session.authUser)throw new ApiError('Connectez-vous pour accéder à votre espace académique.',401);
     const refs=await references(db);
     let user=session.authUser?await displayUser(db,session.authUser,refs):null;
     const requireActive=actor=>{
@@ -102,6 +106,7 @@ export async function handleApi(request,env){
     if(campus instanceof Response){for(const value of cookies)campus.headers.append('Set-Cookie',value);return campus}
     if(campus)return json(campus.value,campus.status);
     if(path==='/bootstrap'){
+      auth();must(method==='GET','Méthode non autorisée.',405);
       const result=await bootstrap(db,refs,url.searchParams.get('program'),url.searchParams.get('semester'),user);
       result.user=safeUser(user);return json(result);
     }
