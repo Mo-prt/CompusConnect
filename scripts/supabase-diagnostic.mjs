@@ -11,6 +11,7 @@ export function formatSupabaseDiagnostic(error) {
   }else if(code==='PGRST202'){
     lines.push('La fonction RPC attendue est absente du cache de l’API, ou sa signature ne correspond pas.');
     lines.push('Appliquez supabase/migrations/20261111000100_existing_schema.sql sur le schéma existant. Cette migration ne crée ni ne supprime de tables.');
+    lines.push('Pour les nouveaux services campus, appliquez aussi supabase/migrations/20261116000100_campus_services.sql.');
     lines.push("Si le schéma existe déjà, vérifiez les fonctions puis exécutez dans le SQL Editor : NOTIFY pgrst, 'reload schema';");
   }else if(code==='PGRST205'||code==='42P01'){
     lines.push('Une table attendue est introuvable. Vérifiez la migration PostgreSQL et le projet sélectionné.');

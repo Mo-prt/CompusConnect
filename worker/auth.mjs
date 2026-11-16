@@ -5,11 +5,12 @@ export function readCookie(request,name){
   try{return raw?decodeURIComponent(raw):null}catch{return null}
 }
 const cookie=(name,value,maxAge)=>`${name}=${encodeURIComponent(value)}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${maxAge}`;
-export const clearSessionCookies=()=>[cookie(accessName,'',0),cookie(refreshName,'',0),cookie('campus_session','',0)];
-export function sessionCookies(session){
+export const clearSessionCookies=()=>[cookie(accessName,'',0),cookie(refreshName,'',0),cookie('campus_session','',0),cookie('campus_ephemeral','',0)];
+export function sessionCookies(session,remember=true){
   if(!session.access_token||!session.refresh_token)throw new ApiError('Session Supabase Auth invalide.',502);
   const lifetime=Math.max(1,Math.min(Number(session.expires_in)||3600,86400));
-  return [cookie(accessName,session.access_token,lifetime),cookie(refreshName,session.refresh_token,604800)];
+  const values=[cookie(accessName,session.access_token,lifetime),cookie(refreshName,session.refresh_token,604800)];
+  return remember?values:[...values.map(value=>value.replace(/; Max-Age=\d+/,'')),cookie('campus_ephemeral','1',0).replace('; Max-Age=0','')];
 }
 export async function readSession(request,db){
   const token=readCookie(request,accessName),refresh=readCookie(request,refreshName);
@@ -20,7 +21,7 @@ export async function readSession(request,db){
   if(refresh){
     try{
       const session=await db.refreshSession(refresh);
-      return {authUser:session.user,cookies:sessionCookies(session)};
+      return {authUser:session.user,cookies:sessionCookies(session,!readCookie(request,'campus_ephemeral'))};
     }catch(error){if(error.status!==401)throw error}
   }
   return {authUser:null,cookies:token||refresh?clearSessionCookies():[]};

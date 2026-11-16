@@ -1,8 +1,10 @@
 import {ApiError} from './errors.mjs';
 import {SupabaseStore} from './storage/supabase.mjs';
 import {references,displayUser,bootstrap} from './storage/catalog.mjs';
-import {readSession,sessionCookies,clearSessionCookies,logout} from './auth.mjs';
+import {readSession,readCookie,sessionCookies,clearSessionCookies,logout} from './auth.mjs';
 import {moroccoInstant} from './time.mjs';
+import {handleAuthFlow} from './auth-flows.mjs';
+import {handleCampus} from './campus.mjs';
 export {ApiError} from './errors.mjs';
 const must=(condition,message,status=400)=>{if(!condition)throw new ApiError(message,status)};
 const text=(value,max=200)=>typeof value==='string'?value.trim().slice(0,max):'';
@@ -49,7 +51,7 @@ export async function handleApi(request,env){
     const db=new SupabaseStore(env),url=new URL(request.url),path=url.pathname.slice(4),method=request.method;
     if(!['GET','HEAD'].includes(method)){
       const origin=request.headers.get('origin');must(!origin||origin===url.origin,'Origine de requête non autorisée.',403);
-      must(request.headers.get('content-type')?.includes('application/json'),'Format JSON requis.',415);
+      if(path!=='/uploads')must(request.headers.get('content-type')?.includes('application/json'),'Format JSON requis.',415);
     }
     const body=async()=>{
       must(Number(request.headers.get('content-length')||0)<20000,'Requête trop volumineuse.',413);
@@ -58,6 +60,8 @@ export async function handleApi(request,env){
       let value;try{value=JSON.parse(raw)}catch{throw new ApiError('Données JSON invalides.')}
       must(value&&typeof value==='object'&&!Array.isArray(value),'Données invalides.');return value;
     };
+    const authFlow=await handleAuthFlow(request,db,path,body);
+    if(authFlow)return authFlow;
     if(path==='/auth/logout'&&method==='POST'){cookies=await logout(request,db);return json({ok:true})}
     if(path==='/auth/demo')throw new ApiError('Connectez-vous avec un compte Supabase Auth. Les rôles sont attribués par l’administration.',410);
     const session=await readSession(request,db);cookies=session.cookies;
@@ -93,8 +97,13 @@ export async function handleApi(request,env){
       }
       const display=await displayUser(db,signed.user,refs);requireActive(display);
       if(display.programId)must(display.program===program.id,'La filière choisie ne correspond pas à votre profil.',401);
-      cookies=sessionCookies(signed);return json({user:safeUser(display)});
+      cookies=sessionCookies(signed,b.remember!==false);
+      if(b.remember!==false&&readCookie(request,'campus_ephemeral'))cookies.push('campus_ephemeral=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0');
+      return json({user:safeUser(display)});
     }
+    const campus=await handleCampus({request,db,user,refs,env,path,method,body});
+    if(campus instanceof Response){for(const value of cookies)campus.headers.append('Set-Cookie',value);return campus}
+    if(campus)return json(campus.value,campus.status);
     if(path==='/bootstrap'){
       const result=await bootstrap(db,refs,url.searchParams.get('program'),url.searchParams.get('semester'),user);
       result.user=safeUser(user);return json(result);

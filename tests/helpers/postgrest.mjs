@@ -1,18 +1,29 @@
 /** HTTP transport fixture. PostgreSQL executes the actual compatibility functions. */
-export function postgrestFixture(pg,accounts){
-  const tables=new Set(['profiles','roles','user_roles','programs','departments','department_heads','semesters','modules','program_modules','timetables','timetable_sessions','classrooms','events','event_program_targets','event_registrations']);
+export function postgrestFixture(pg,accounts,extraTables=[]){
+  const tables=new Set(['profiles','roles','user_roles','programs','departments','department_heads','semesters','modules','program_modules','timetables','timetable_sessions','classrooms','events','event_program_targets','event_registrations',...extraTables]);
+  const storedObjects=new Map();
   const access=new Map(),refresh=new Map();let sequence=0;
   const identifier=v=>{if(!/^[a-z_][a-z0-9_]*$/.test(v))throw Error('Invalid identifier');return '"'+v+'"'};
   const authUser=a=>({id:a.id,email:a.email,user_metadata:a.metadata||{first_name:a.name||'Étudiant',last_name:'Test'}});
   const issue=a=>{const token='access-'+(++sequence),refreshToken='refresh-'+sequence;access.set(token,{account:a,refreshToken});refresh.set(refreshToken,a);return{access_token:token,refresh_token:refreshToken,expires_in:3600,user:authUser(a)}};
   const dateRows=result=>result.rows.map(row=>Object.fromEntries(Object.entries(row).map(([key,value])=>[key,result.fields.find(f=>f.name===key)?.dataTypeID===1082&&value instanceof Date?value.toISOString().slice(0,10):value])));
   const transport=async(input,init={})=>{
-    const url=new URL(input),headers=new Headers(init.headers),method=init.method||'GET',body=init.body?JSON.parse(init.body):undefined;
+    const url=new URL(input),headers=new Headers(init.headers),method=init.method||'GET';
     if(url.origin!=='https://example.supabase.co')throw Error('Unexpected destination');
     if(headers.get('apikey')!=='sb_secret_test_only')return Response.json({message:'rejected'},{status:401});
+    if(url.pathname==='/storage/v1/bucket/campus-files')return Response.json({id:'campus-files',public:false});
+    if(url.pathname.startsWith('/storage/v1/object/')){
+      const key=url.pathname;
+      if(method==='POST'){storedObjects.set(key,{bytes:init.body,type:headers.get('content-type')});return Response.json({Key:key})}
+      if(method==='DELETE'){storedObjects.delete(key);return new Response(null,{status:204})}
+      const file=storedObjects.get(key);return file?new Response(file.bytes,{headers:{'Content-Type':file.type}}):new Response(null,{status:404});
+    }
+    const body=init.body?JSON.parse(init.body):undefined;
     try{
       if(url.pathname.startsWith('/auth/v1/')){
         const path=url.pathname.slice('/auth/v1/'.length),token=headers.get('Authorization')?.replace('Bearer ','');
+        if(path==='settings')return Response.json({external:{google:false}});
+        if(path==='recover')return Response.json({});
         if(path==='user')return access.has(token)?Response.json(authUser(access.get(token).account)):Response.json({error_code:'bad_jwt'},{status:401});
         if(path==='logout'){
           const session=access.get(token);if(session){refresh.delete(session.refreshToken);access.delete(token)}
@@ -72,9 +83,19 @@ export function postgrestFixture(pg,accounts){
       }
       if(method==='PATCH'){
         const set=Object.entries(body).map(([key,value])=>{params.push(value);return identifier(key)+'=$'+params.length});
-        await pg.query('UPDATE public.'+identifier(path)+' SET '+set.join(',')+condition,params);
-        return new Response(null,{status:204});
+        const result=await pg.query('UPDATE public.'+identifier(path)+' SET '+set.join(',')+condition+' RETURNING *',params);
+        return headers.get('prefer')?.includes('return=representation')?Response.json(dateRows(result)):new Response(null,{status:204});
       }
+      if(method==='POST'){
+        const result=[];
+        for(const row of Array.isArray(body)?body:[body]){
+          const entries=Object.entries(row);
+          const created=await pg.query('INSERT INTO public.'+identifier(path)+' ('+entries.map(([key])=>identifier(key)).join(',')+') VALUES ('+entries.map((_,i)=>'$'+(i+1)).join(',')+') RETURNING *',entries.map(([,value])=>value));
+          result.push(...dateRows(created));
+        }
+        return Response.json(result,{status:201});
+      }
+      if(method==='DELETE'){await pg.query('DELETE FROM public.'+identifier(path)+condition,params);return new Response(null,{status:204})}
       throw Error('Unexpected mutation outside transactional RPC');
     }catch(error){return Response.json({code:error.code==='42883'?'PGRST202':error.code||'FIXTURE',message:'SQL test error: '+error.message},{status:400})}
   };

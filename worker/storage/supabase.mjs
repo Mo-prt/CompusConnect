@@ -12,8 +12,8 @@ export class SupabaseStore {
     if(url.protocol!=='https:'||url.username||url.password||url.search||url.hash||!['','/rest/v1'].includes(url.pathname.replace(/\/+$/,'')))throw new ApiError('SUPABASE_URL doit être une URL HTTPS de projet Supabase, sans paramètres.',503);
     this.origin=url.origin;this.key=env.SUPABASE_SECRET_KEY;this.fetch=fetchImpl.bind(globalThis);
   }
-  async request(resource,{method='GET',query={},body,prefer,token,auth=false}={}){
-    const url=new URL((auth?'/auth/v1/':'/rest/v1/')+resource,this.origin);
+  async request(resource,{method='GET',query={},body,prefer,token,auth=false,storage=false}={}){
+    const url=new URL((storage?'/storage/v1/':auth?'/auth/v1/':'/rest/v1/')+resource,this.origin);
     if(url.origin!==this.origin)throw new ApiError('Ressource Supabase invalide.',500);
     url.search=new URLSearchParams(query).toString();
     const headers={apikey:this.key,'Content-Type':'application/json'};
@@ -47,6 +47,18 @@ export class SupabaseStore {
     try{return JSON.parse(raw)}catch{throw new ApiError('Réponse Supabase invalide.',502)}
   }
   rpc(name,args){return this.request('rpc/'+name,{method:'POST',body:args})}
+  insert(table,body){return this.request(table,{method:'POST',body,prefer:'return=representation'})}
+  update(table,id,body,filters={}){return this.request(table,{method:'PATCH',query:{id:'eq.'+id,...filters},body,prefer:'return=representation'})}
+  remove(table,filters){return this.request(table,{method:'DELETE',query:filters,prefer:'return=minimal'})}
+  async storage(path,{method='GET',body,contentType}={}){
+    const url=new URL('/storage/v1/object/'+path.split('/').map(encodeURIComponent).join('/'),this.origin);
+    const headers={apikey:this.key};
+    if(!this.key.startsWith('sb_secret_'))headers.Authorization='Bearer '+this.key;
+    if(contentType)headers['Content-Type']=contentType;
+    let response;try{response=await this.fetch(url.toString(),{method,headers,body,redirect:'manual',signal:AbortSignal.timeout(20000)})}catch{throw new ApiError('Le stockage est momentanément inaccessible.',503)}
+    if(!response.ok||response.status>=300)throw new ApiError('Le fichier est indisponible. Vérifiez le stockage du projet.',502);
+    return response;
+  }
   async all(table,query={}){
     const explicitLimit=query.limit!==undefined,pageSize=explicitLimit?Number(query.limit):500;
     const initialOffset=Number(query.offset||0),rows=[];

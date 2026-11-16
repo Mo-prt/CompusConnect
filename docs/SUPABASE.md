@@ -1,5 +1,7 @@
 # CampusConnect — utiliser votre schéma Supabase existant
 
+> Pour la nouvelle maquette des 16 écrans, appliquer également `supabase/migrations/20261116000100_campus_services.sql` et consulter [le guide des nouveaux services](DESIGN_ET_FONCTIONNALITES.md). Il couvre le stockage privé, les demandes de rôles, Google, la récupération et le connecteur IA.
+
 Cette version est adaptée aux tables déjà présentes dans le projet `https://xbpzhylcrbaklmalmivv.supabase.co`. Elle conserve les UUID, les données, les enums, les politiques RLS et les relations existantes.
 
 ## 1. Complément SQL à appliquer une fois

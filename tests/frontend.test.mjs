@@ -32,7 +32,7 @@ test('frontend renders all pages with actual program codes and dynamic semester 
 test('frontend removes privileged demo creation and preserves multi-target event editing',async()=>{
   const {ctx,get}=await context();vm.runInContext('authModal()',ctx);
   assert.ok(!get('modal-root').innerHTML.includes('demo-organizer'));
-  assert.match(get('modal-root').innerHTML,/Supabase Auth/);
+  assert.match(get('modal-root').innerHTML,/espace personnalisé/);
   vm.runInContext("state.user={id:'organizer-id',name:'Organisateur Test',role:'organizer',roles:['organizer'],program:'DEMO-SIIA',semester:'S1'};eventForm('event-id')",ctx);
   assert.match(get('modal-root').innerHTML,/name="programs" multiple/);assert.match(get('modal-root').innerHTML,/value="DEMO-SIIA" selected/);assert.match(get('modal-root').innerHTML,/name="status"/);
 });
