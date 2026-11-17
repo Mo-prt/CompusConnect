@@ -68,10 +68,10 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif}b
 .landing-visual{position:absolute;inset:0;height:100%;width:100%}
 .landing-visual img{object-position:center bottom;object-fit:cover}
 .landing-visual:after{background:linear-gradient(90deg,#fbf7f0 0%,#fbf7f0f5 27%,#fbf7f0d9 40%,#fbf7f040 59%,#fbf7f000 74%)}
-.auth-art{display:flex;flex-direction:column;justify-content:center;background:var(--ink)}
-.auth-art>img{position:relative;inset:auto;width:100%;height:auto;object-fit:contain;aspect-ratio:20/9}
-.auth-art:after{display:none}
-.auth-art>div{position:relative;inset:auto;padding:28px 10%;color:#f9efd9}
+.auth-art{position:sticky;top:0;align-self:start;min-height:0;height:100vh;height:100dvh;background:var(--ink)}
+.auth-art>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:60% center;aspect-ratio:auto}
+.auth-art:after{display:block;background:linear-gradient(180deg,#2030360a 35%,#20303680 65%,#203036f2 100%)}
+.auth-art>div{position:absolute;inset:auto 10% 8%;padding:0;color:#f9efd9}
 .auth-art h2{font-size:25px;letter-spacing:-.4px;line-height:1.45;margin:0}
 .auth-art p{font-size:12px;margin-top:14px;color:#ddcfb4}
 .role-card:disabled{cursor:not-allowed;opacity:.55}
@@ -79,3 +79,75 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif}b
 @media(max-width:1000px){.landing-copy{width:60%;padding:70px 0 70px 6%}.landing-copy h1{font-size:52px}.landing-copy>p{max-width:330px}.landing-hero{min-height:500px}.landing-visual:after{background:linear-gradient(90deg,#fbf7f0 0%,#fbf7f0e8 40%,#fbf7f070 65%,transparent 90%)}.auth-art h2{font-size:21px}}
 @media(max-width:760px){.landing-hero{min-height:0}.landing-copy{padding:44px 7% 36px;width:100%;max-width:none}.landing-copy h1{font-size:50px;letter-spacing:-1.8px;line-height:1.1;margin:22px 0}.landing-copy>p{max-width:460px;font-size:13px}.landing-visual{position:relative;inset:auto;height:auto;aspect-ratio:20/9;width:100%}.landing-visual img{width:100%;height:100%;object-fit:contain}.landing-visual:after{display:none}.auth-art{display:none}.service-grid{grid-template-columns:1fr}.public-events .strip-event{flex:1}.landing .utility-bar{font-size:9px}}
 @media(max-width:420px){.landing-copy h1{font-size:43px}.landing-copy>.eyebrow{font-size:9px}.landing-copy .hero-actions{gap:10px}.landing-copy .hero-actions .btn{padding:11px 14px}.role-card>strong{font-size:12px}}
+
+/* Authentification : formulaires compacts et couverture à hauteur d'écran. */
+.auth-layout{grid-template-columns:minmax(0,57fr) minmax(0,43fr);min-height:100vh;min-height:100dvh}
+.auth-panel{min-width:0;min-height:100vh;min-height:100dvh;padding:28px clamp(24px,5vw,80px) 18px}
+.auth-panel>div:first-child{flex-direction:row;align-items:center;flex-wrap:wrap;gap:16px}
+.auth-panel .brand{padding:0}
+.auth-content{max-width:400px;margin:auto;width:100%;padding:28px 0}
+.auth-content>p{margin-bottom:20px;font-size:14px}
+.auth-content form>label{margin-top:14px;font-size:13px}
+.auth-content input:not([type=checkbox]),.auth-content select{height:46px;font-size:16px}
+.auth-content form>.btn{min-height:46px;margin-top:20px;font-size:14px}
+.auth-content .password-field{display:flex;align-items:center;margin-top:7px}
+.auth-content .password-field input{margin-top:0;padding-right:88px!important}
+.auth-content .password-toggle{top:50%;right:8px;transform:translateY(-50%);min-height:36px;font-size:11px}
+.auth-content .auth-link{margin-top:20px;font-size:13px}
+.auth-content .privacy-note{margin-top:14px;font-size:11px}
+.auth-content .notice{margin-top:14px;overflow-wrap:anywhere}
+.auth-panel .back-home{font-size:12px}
+.auth-copyright{font-size:10px}
+@media(max-width:1000px) and (min-width:761px){.auth-panel{padding:24px 28px 18px}.auth-panel>div:first-child{align-items:flex-start;flex-direction:column}.auth-art>div{inset:auto 8% 7%}}
+@media(max-width:760px){.auth-layout{grid-template-columns:minmax(0,1fr)}.auth-panel{padding:24px 6% 18px}.auth-art{display:none}.auth-content{padding:28px 0}.auth-panel .back-home{font-size:11px}}
+@media(max-width:420px){.auth-panel .back-home{font-size:10px}.auth-panel .brand-name{font-size:17px}.auth-panel .brand-mark,.auth-panel .brand-mark svg{width:32px;height:32px}.auth-panel>div:first-child{gap:10px}.auth-panel .back-home svg{width:14px;height:14px}}
+@media(max-height:800px){.auth-panel{padding-top:16px;padding-bottom:12px}.auth-panel .brand-mark,.auth-panel .brand-mark svg{width:32px;height:32px}.auth-content{padding:14px 0}.auth-content h1{font-size:26px;margin:9px 0 5px}.auth-content>p{margin-bottom:12px}.auth-content form>label{margin-top:9px}.auth-content input:not([type=checkbox]),.auth-content select{height:42px}.auth-content form>.btn{min-height:42px;margin-top:13px}.auth-content .auth-link{margin-top:11px}.auth-content .privacy-note{margin-top:8px}}
+
+/* Connexion et inscription : panneau central sur la photo officielle du campus. */
+.auth-layout{position:relative;isolation:isolate;display:grid;grid-template-columns:minmax(0,1fr);place-items:center;min-height:100vh;min-height:100dvh;padding:38px 20px;overflow:hidden;background:#203036}
+.auth-layout::before{position:absolute;z-index:-1;inset:-14px;content:'';background:linear-gradient(90deg,#20303635,#2030360a 48%,#20303635),url('/assets/fpk-campus.jpg') center 48%/cover no-repeat;filter:blur(6px);transform:scale(1.025)}
+.auth-panel{width:min(100%,520px);min-width:0;min-height:0;padding:22px clamp(22px,4vw,42px) 16px;border:2px solid #ffffffb8;border-radius:26px;background:#fffcf2c9;box-shadow:0 14px 45px #14252b4d;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+.auth-panel>.auth-brand{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:12px;position:relative}
+.auth-brand>.brand{padding:0}
+.auth-brand>.back-home{position:static;display:grid;place-items:center;width:38px;height:38px;margin-left:auto;border:1px solid #20303621;border-radius:50%;background:#fff9;color:var(--ink)}
+.auth-brand>.back-home:hover{background:#f8e9cb;border-color:#b77b17}
+.auth-panel .brand-name{font-size:clamp(20px,2.6vw,28px)}
+.auth-panel .brand-name small{font-size:11px;letter-spacing:2.5px}
+.auth-panel .brand-mark,.auth-panel .brand-mark svg{width:42px;height:42px}
+.auth-panel .back-home{color:var(--ink)}
+.auth-panel .back-home>span{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.auth-panel .back-home svg{width:18px;height:18px}
+.auth-content{max-width:430px;padding:16px 0 12px}
+.auth-content>.eyebrow{display:none}
+.auth-content h1{text-align:center;font-size:32px;letter-spacing:0;margin:6px 0 4px}
+.auth-content>p:not(.auth-link):not(.privacy-note){margin-bottom:14px;text-align:center;font-size:15px}
+.auth-content form>label{position:relative;display:block;margin-top:11px;padding-left:34px;font-size:14px;font-weight:700;line-height:23px}
+.auth-content .auth-field-icon{position:absolute;top:2px;left:2px;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;color:#a5660b}
+.auth-content .auth-field-icon svg{width:19px;height:19px;stroke-width:1.8}
+.auth-content input:not([type=checkbox]),.auth-content select{height:48px;margin-top:4px;padding:10px 18px;border-color:#ffffffa6;border-radius:26px;background:#ffffffed;font-size:15px}
+.auth-content .password-field{position:relative;display:block;margin-top:6px}
+.auth-content .password-field input{margin-top:0;padding-right:58px!important}
+.auth-content .password-toggle{position:absolute;top:50%;right:9px;display:grid;place-items:center;width:40px;height:40px;min-height:40px;padding:9px;transform:translateY(-50%);color:var(--ink);font-size:0}
+.auth-content .password-toggle svg{width:20px;height:20px}
+.auth-content form>.btn{display:flex;align-items:center;justify-content:center;gap:9px;min-height:50px;margin-top:17px;border:0;border-radius:28px;background:var(--primary);font-size:16px}
+.auth-content form>.btn:hover{background:var(--primary-hover)}
+.auth-content .auth-link{margin:14px 0 0;text-align:center;font-size:14px}
+.auth-content .privacy-note{margin:9px 0 0;text-align:center;font-size:11px;line-height:1.5}
+.auth-panel>.auth-copyright{display:block;padding-top:13px;border-top:1px solid #20303612;text-align:center;font-size:12px}
+/* Keep the additional registration fields compact without shrinking the login form. */
+.auth-register.auth-layout{padding-top:20px;padding-bottom:20px}
+.auth-register .auth-panel{width:min(100%,510px);padding-top:16px;padding-bottom:13px}
+.auth-register .auth-panel .brand-mark,.auth-register .auth-panel .brand-mark svg{width:36px;height:36px}
+.auth-register .auth-panel .brand-name{font-size:22px}
+.auth-register .auth-panel .brand-name small{margin-top:3px}
+.auth-register .auth-content{padding:10px 0 9px}
+.auth-register .auth-content h1{font-size:29px;margin:3px 0}
+.auth-register .auth-content>p:not(.auth-link):not(.privacy-note){margin-bottom:8px;font-size:14px}
+.auth-register .auth-content form>label{margin-top:7px;line-height:20px}
+.auth-register .auth-content input:not([type=checkbox]),.auth-register .auth-content select{height:41px;margin-top:3px}
+.auth-register .auth-content form>.btn{min-height:44px;margin-top:11px}
+.auth-register .auth-content .auth-link{margin-top:9px}
+.auth-register .auth-panel>.auth-copyright{padding-top:9px}
+@media(max-width:760px){.auth-layout{padding:22px 14px}.auth-panel{padding:25px clamp(20px,6vw,40px) 18px;border-radius:26px}.auth-panel>.auth-brand{gap:12px}.auth-brand>.back-home{right:-5px;top:-12px}.auth-panel .brand-mark,.auth-panel .brand-mark svg{width:38px;height:38px}.auth-panel .brand-name{font-size:22px}.auth-panel .brand-name small{font-size:9px}.auth-content{padding:20px 0 15px}.auth-content h1{font-size:30px}.auth-content>p:not(.auth-link):not(.privacy-note){font-size:15px}.auth-content form>label{padding-left:31px;font-size:14px}.auth-content .auth-field-icon{width:22px}.auth-content .auth-field-icon svg{width:20px;height:20px}.auth-content input:not([type=checkbox]),.auth-content select{height:50px;padding-left:17px;font-size:16px}.auth-content form>.btn{min-height:52px;font-size:16px}.auth-content .auth-link{font-size:14px}.auth-panel>.auth-copyright{font-size:12px}}
+@media(max-width:420px){.auth-layout{padding:18px 12px}.auth-panel{padding:20px 19px 16px;border-radius:23px}.auth-panel>.auth-brand{justify-content:flex-start;gap:9px}.auth-panel .brand-mark,.auth-panel .brand-mark svg{width:34px;height:34px}.auth-panel .brand-name{font-size:19px}.auth-panel .brand-name small{font-size:8px}.auth-brand>.back-home{width:34px;height:34px}.auth-panel .back-home svg{width:16px;height:16px}.auth-content h1{font-size:27px}.auth-content form>label{margin-top:10px}.auth-content .auth-link{font-size:13px}.auth-register .auth-panel{padding:15px 17px 12px}.auth-register .auth-panel .brand-name{font-size:18px}.auth-register .auth-panel .brand-mark,.auth-register .auth-panel .brand-mark svg{width:31px;height:31px}}
+@media(max-height:760px) and (min-width:761px){.auth-layout{padding:16px}.auth-panel{padding-top:16px;padding-bottom:12px}.auth-panel .brand-mark,.auth-panel .brand-mark svg{width:37px;height:37px}.auth-content{padding:12px 0 10px}.auth-content h1{font-size:30px;margin:4px 0}.auth-content>p:not(.auth-link):not(.privacy-note){margin-bottom:10px;font-size:15px}.auth-content form>label{margin-top:8px}.auth-content input:not([type=checkbox]),.auth-content select{height:44px}.auth-content form>.btn{min-height:46px;margin-top:12px}.auth-content .auth-link{margin-top:11px}.auth-panel>.auth-copyright{padding-top:10px}}
