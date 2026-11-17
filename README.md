@@ -6,6 +6,8 @@ Les écrans suivent les fonctionnalités **F01 à F08 du cahier des charges** : 
 
 Les contrats et droits des routes sont décrits dans [la documentation API](docs/API.md).
 
+L’option **Mot de passe oublié ?** utilise les emails de Supabase Auth. Ajouter les URL de retour dans **Authentication → URL Configuration** avant les essais : [configuration et test de la récupération](docs/RECUPERATION_MOT_DE_PASSE.md). Aucune migration SQL supplémentaire n’est nécessaire pour cette option.
+
 Les visiteurs sans compte peuvent consulter **Découvrir la FPK**, les départements et filières, les **actualités publiées avec leurs images**, et les événements. Les brouillons et publications futures restent exclus. L’espace académique, les documents et les services personnels exigent une connexion. Cette extension publique n’exige pas de nouvelle migration SQL.
 
 ## Démarrage
@@ -28,6 +30,7 @@ Les compléments SQL sont `supabase/migrations/20261111000100_existing_schema.sq
 
 - Accueil du portail étudiant, identité anthracite/ivoire/or et photographie de la faculté.
 - Inscription et connexion par email, mot de passe et filière ; routage limité aux profils déjà autorisés.
+- Récupération du mot de passe par email, lien temporaire et confirmation du nouveau mot de passe.
 - Annonces, documents et bibliothèque avec fichiers privés et audiences par filière.
 - Réclamations privées, messages et traitement ; actualités, Lost & Found et projets collaboratifs.
 - FPK Map schématique, offres Marketplace et demandes transactionnelles.
@@ -53,6 +56,7 @@ Les données du campus viennent de votre base. Les anciens comptes de démonstra
 - `src/experience.js`, `src/experience.css` : navigation et écrans du cahier des charges.
 - `worker/api.mjs` : validation et contrôles d’accès.
 - `worker/auth.mjs` : cookies, validation des sessions et renouvellement.
+- `worker/recovery.mjs` : récupération par email et échange PKCE côté serveur.
 - `worker/campus.mjs` : services pédagogiques et communautaires, fichiers, accès et assistant.
 - `worker/storage/supabase.mjs` : transport HTTP et opérations du schéma existant.
 - `worker/storage/catalog.mjs` : lecture et correspondance des données académiques et événementielles.
@@ -75,6 +79,7 @@ Les valeurs réelles sont à enregistrer dans les secrets de l’hébergement, o
 ## API
 
 - `GET /api/auth/me`, `POST /api/auth/login`, `POST /api/auth/register`, `POST /api/auth/logout`.
+- `POST /api/auth/recover`, `GET /api/auth/recovery/callback`, `GET /api/auth/recovery`, `POST /api/auth/password`.
 - `PUT /api/profile`.
 - `GET /api/bootstrap?program=<code>&semester=<UUID-ou-S1>`.
 - `POST /api/events`, `PUT /api/events/:id`, `DELETE /api/events/:id`.

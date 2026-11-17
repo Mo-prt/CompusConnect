@@ -76,7 +76,7 @@ export class SupabaseStore {
   signIn(email,password){return this.request('token',{auth:true,method:'POST',query:{grant_type:'password'},body:{email,password}})}
   refreshSession(refresh_token){return this.request('token',{auth:true,method:'POST',query:{grant_type:'refresh_token'},body:{refresh_token}})}
   signUp(email,password,data,redirectTo){return this.request('signup',{auth:true,method:'POST',query:redirectTo?{redirect_to:redirectTo}:{},body:{email,password,data}})}
-  signOut(token){return this.request('logout',{auth:true,method:'POST',query:{scope:'local'},token,body:{}})}
+  signOut(token,scope='local'){return this.request('logout',{auth:true,method:'POST',query:{scope},token,body:{}})}
   async profile(userId){
     const [profile,links]=await Promise.all([this.one('profiles',{id:'eq.'+userId}),this.all('user_roles',{user_id:'eq.'+userId,select:'role:roles(code)'})]);
     return profile?{...profile,roles:links.map(x=>x.role?.code).filter(Boolean)}:null;

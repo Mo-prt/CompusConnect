@@ -162,10 +162,12 @@ test('assistant uses accessible sources, abstains for private information and is
   assert.equal((await call('/assistant/'+answer.data.message.id+'/feedback','POST',{is_relevant:true})).status,200);
 });
 
-test('authentication exposes only the email-password-program flow specified in the requirements',async()=>{
-  for(const [path,method,body] of [['/auth/options','GET',undefined],['/auth/google','POST',{program:'SIIA'}],['/auth/recover','POST',{email:'student@example.test'}],['/auth/password','POST',{password:'new-password'}]]){
+test('authentication supports password recovery and keeps third-party login disabled',async()=>{
+  for(const [path,method,body] of [['/auth/options','GET',undefined],['/auth/google','POST',{program:'SIIA'}]]){
     assert.equal((await call(path,method,body,'anonymous')).status,404,path);
   }
+  assert.equal((await call('/auth/recover','POST',{email:'student@example.test'},'anonymous')).status,200);
+  assert.equal((await call('/auth/password','POST',{password:'new-password',confirmation:'new-password'},'anonymous')).status,401);
   assert.equal((await call('/auth/login','POST',{email:'student@example.test',password:'password-test',program:'SIIA'},'anonymous')).status,200);
 });
 

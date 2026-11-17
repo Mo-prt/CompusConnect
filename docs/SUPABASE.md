@@ -55,6 +55,7 @@ L’inscription et la connexion utilisent maintenant **Supabase Auth**. Les prof
 
 - Les comptes déjà présents dans Supabase Auth peuvent se connecter avec leur email, leur mot de passe et la filière liée à leur profil.
 - Si la confirmation email est activée dans Supabase, un nouveau compte doit d’abord confirmer son email puis se connecter. Dans **Authentication → URL Configuration**, configurer l’URL du site et les URL de redirection autorisées pour le test local (`http://localhost:8787`) et pour le domaine de production. La page de retour retire les jetons éventuels du fragment d’URL et propose la connexion par mot de passe.
+- Pour **Mot de passe oublié ?**, ajouter aussi les URL complètes se terminant par `/api/auth/recovery/callback`, conserver le lien `{{ .ConfirmationURL }}` du modèle Reset Password et vérifier l’envoi SMTP : [guide de récupération](RECUPERATION_MOT_DE_PASSE.md). Ce parcours ne nécessite pas de migration SQL supplémentaire.
 - À la première connexion validée, un profil manquant est créé et reçoit uniquement le rôle `student` s’il ne possède aucun rôle.
 - Un compte `pending`, `suspended` ou `disabled` n’est pas activé automatiquement.
 - Les rôles `teacher`, `department_head`, `organizer` et `admin` restent attribués par l’administration dans les tables existantes.

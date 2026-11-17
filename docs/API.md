@@ -10,7 +10,15 @@ Préfixe : `/api`. JSON UTF-8 pour les écritures, sauf les uploads binaires. Au
 | `POST /auth/register` | `{name,email,password,program}`. `program` est le code de filière. Peut répondre `202` avec `requiresEmailConfirmation`. |
 | `POST /auth/login` | `{email,password,program}`. Les rôles sont lus dans les tables du projet. |
 | `POST /auth/logout` | Révoque la session locale et efface les cookies. |
+| `POST /auth/recover` | `{email}` ; réponse générique `{message}` pour ne pas révéler les comptes. Déclenche l’email Supabase et pose un cookie de preuve PKCE, valable 20 minutes. |
+| `GET /auth/recovery/callback?code=…` | Callback d’email ; échange le code PKCE côté serveur puis redirige vers `/#reset-password`, ou `/?recovery=invalid#forgot-password` si le lien est invalide. |
+| `GET /auth/recovery` | `{valid:boolean}` ; vérifie la preuve de récupération et l’identité Auth. Aucun jeton n’est renvoyé. |
+| `POST /auth/password` | `{password,confirmation}` ; exige une preuve de récupération valide, pas une simple session de connexion. Répond `{ok,sessionsRevoked,message}` puis efface les cookies. |
 | `PUT /profile` | `{name,program}` ; ne permet pas de modifier les rôles. |
+
+La récupération utilise des cookies HttpOnly/Secure signés, avec un usage et une expiration vérifiés côté serveur. La preuve du formulaire dure au plus 10 minutes. Les écritures exigent du JSON et refusent une origine différente de celle de la requête. Les erreurs de format ou de confirmation donnent `400`, une preuve expirée `401`, la limitation d’envoi `429` et une indisponibilité du fournisseur `503`. Une méthode non prise en charge donne `405`.
+
+Après changement du mot de passe, une déconnexion globale Supabase est demandée ; son échec est signalé sans masquer le succès du changement. Les JWT déjà émis peuvent rester valides jusqu’à expiration. Voir [la configuration et la recette de récupération](RECUPERATION_MOT_DE_PASSE.md).
 
 ## Accès visiteurs sans compte
 

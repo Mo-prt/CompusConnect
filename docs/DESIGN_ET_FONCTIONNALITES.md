@@ -29,14 +29,16 @@ Les textes et éléments de marque miniers sont retirés. La navigation ne compo
 
 ## Écrans retirés du périmètre
 
-- Connexion par un fournisseur tiers et récupération de mot de passe ajoutées à la maquette.
+- Connexion par un fournisseur tiers ajoutée à la maquette.
 - Option de connexion persistante dans le formulaire ; les cookies de session restent gérés côté serveur.
 - Demande d’un rôle privilégié et interface d’approbation des demandes.
 - Centre de notifications et actions associées.
 - Pages d’admissions, de carrières ou de promotion commerciale de formations.
 - Écran de création de lieux depuis l’interface étudiante ; la carte utilise les lieux paramétrés dans la base.
 
-Les anciennes routes applicatives de connexion tierce, de récupération, de demandes de rôles et de notifications ne sont plus exposées. Les migrations et tables historiques ne sont pas supprimées : cette correction ne détruit aucune donnée.
+Les anciennes routes applicatives de connexion tierce, de demandes de rôles et de notifications ne sont plus exposées. Les migrations et tables historiques ne sont pas supprimées : cette correction ne détruit aucune donnée.
+
+La récupération du mot de passe a été ajoutée sur demande explicite de l’équipe comme complément à F01 : email via Supabase Auth, retour PKCE côté serveur, lien temporaire et confirmation du nouveau mot de passe. Elle reprend le thème des écrans de connexion et ne demande pas de filière pour envoyer le lien. Voir [configuration et essai](RECUPERATION_MOT_DE_PASSE.md).
 
 ## Présentation et accessibilité
 
