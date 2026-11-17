@@ -5,6 +5,8 @@ import js from '../src/app.js';
 import campusPhoto from '../src/assets/fpk-campus.jpg';
 import experience from '../src/experience.js';
 import theme from '../src/experience.css';
+import themeScript from '../src/theme.js';
+import themeStyles from '../src/theme.css';
 
 export default {
   async fetch(request,env) {
@@ -12,8 +14,8 @@ export default {
     if(path.startsWith('/api/')) return handleApi(request,env);
     if(path==='/assets/fpk-campus.jpg')return new Response(campusPhoto,{headers:{'Content-Type':'image/jpeg','Cache-Control':'public, max-age=86400','X-Content-Type-Options':'nosniff'}});
     if(path.startsWith('/assets/'))return new Response('Ressource introuvable.',{status:404,headers:{'Content-Type':'text/plain; charset=utf-8'}});
-    const type=['/app.js','/experience.js'].includes(path)?'application/javascript':path==='/style.css'?'text/css':'text/html';
-    return new Response(path==='/experience.js'?experience:path==='/app.js'?js:path==='/style.css'?css+'\n'+theme:html,{headers:{
+    const type=['/app.js','/experience.js','/theme.js'].includes(path)?'application/javascript':path==='/style.css'?'text/css':'text/html';
+    return new Response(path==='/theme.js'?themeScript:path==='/experience.js'?experience:path==='/app.js'?js:path==='/style.css'?css+'\n'+theme+'\n'+themeStyles:html,{headers:{
       'Content-Type':type+'; charset=utf-8',
       'X-Content-Type-Options':'nosniff',
       'Referrer-Policy':'strict-origin-when-cross-origin',

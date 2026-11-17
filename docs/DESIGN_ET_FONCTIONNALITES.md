@@ -46,7 +46,7 @@ Les actualités publiques et celles de l’espace membre utilisent un bouton **F
 
 La photographie de façade indiquée par l’utilisateur est intégrée depuis la couverture publique de la page officielle FPK (JPEG disponible : 640 × 288). Elle est cadrée avec CSS sans modifier le fichier ni ajouter de texte sur la façade. La provenance est documentée dans `src/assets/README.md`.
 
-Le thème anthracite, ivoire et or est conservé. Les couleurs sont centralisées dans `src/experience.css` :
+Le thème anthracite, ivoire et or est conservé. Les couleurs du mode clair sont centralisées dans `src/experience.css` :
 
 | Token | HEX | Usage |
 | --- | --- | --- |
@@ -58,6 +58,23 @@ Le thème anthracite, ivoire et or est conservé. Les couleurs sont centralisée
 | `--gold-soft` | `#F8E9CB` | Badges |
 | `--line` | `#E3DDD2` | Bordures |
 | `--muted` | `#726F69` | Texte secondaire |
+
+Le **mode sombre** est actif par défaut, avec les adaptations de `src/theme.css` :
+
+| Token | HEX | Usage |
+| --- | --- | --- |
+| `--paper` | `#101B20` | Fond de page |
+| `--surface` | `#19292F` | Cartes et fenêtres |
+| `--chrome` | `#0D171C` | Menus et bandeaux |
+| `--field` | `#122127` | Champs de formulaire |
+| `--ink` | `#F5F0E7` | Texte principal |
+| `--muted` | `#A9B4B9` | Texte secondaire |
+| `--primary`, `--gold` | `#D9A441` | Actions et accents |
+| `--line` | `#30434B` | Bordures |
+
+Le bouton soleil/lune est disponible sur les pages publiques, les écrans de compte et de choix du profil ainsi que dans la barre de l’espace académique. `src/theme.js` applique la préférence avant les styles et le rendu de l’application, pour éviter un flash clair. Le choix est conservé sous `campusconnect-theme` dans le stockage local du navigateur et synchronisé entre les onglets. Si le stockage est indisponible, la bascule reste utilisable pendant la visite. Elle ne relance aucun appel à l’API et ne recrée pas les formulaires.
+
+Les fenêtres de détail, les tableaux, les états d’erreur, les documents, les discussions et la carte suivent le même thème. L’impression de l’EDT utilise un fond clair. Ce changement ne modifie pas la base Supabase et n’intègre aucune donnée d’exemple des maquettes.
 
 Les informations proviennent de la base. Aucun compteur ou compte de démonstration n’est inventé. La mise en page s’adapte au mobile ; les contrôles restent accessibles au clavier et les contenus utilisateur sont échappés.
 

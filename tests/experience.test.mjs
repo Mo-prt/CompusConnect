@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import fs from 'node:fs/promises';
 
-const core=await fs.readFile(new URL('../src/app.js',import.meta.url),'utf8'),experience=await fs.readFile(new URL('../src/experience.js',import.meta.url),'utf8');
+const core=await fs.readFile(new URL('../src/app.js',import.meta.url),'utf8'),experience=await fs.readFile(new URL('../src/experience.js',import.meta.url),'utf8'),theme=await fs.readFile(new URL('../src/theme.js',import.meta.url),'utf8');
 const user={id:'student-id',name:'Amine Test',role:'student',roles:['student'],program:'SIIA',semester:'S9'};
 const base={program:'SIIA',semester:'S9',semesterId:'semester-id',academicYear:'2026-2027',programs:[{id:'SIIA',uuid:'program-id',departmentId:'dept',name:'Systèmes intelligents',department:'Informatique',semester:'S9',head:'Responsable Test',initials:'RT',email:'department@example.test',office:'B12',hours:'Mardi'}],semesters:[{id:'semester-id',code:'S9',label:'Semestre 9'}],modules:[['DL','Deep Learning','Enseignant',4,'Apprendre les réseaux','DL']],schedule:[],events:[]};
 const articleId='20000000-0000-4000-8000-000000000001';
@@ -11,7 +11,8 @@ const publicFixture={institution:{name:'Faculté Polydisciplinaire de Khouribga'
 async function context({signedIn=true,offline=false,recoveryValid=false,passwordStatus=200,hash=''}={}){
   const nodes=new Map(),handlers=[],calls=[];
   const get=id=>{if(!nodes.has(id))nodes.set(id,{innerHTML:'',textContent:'',classList:{add(){},remove(){},toggle(){}},focus(){},setSelectionRange(){}});return nodes.get(id)};
-  const document={getElementById:get,addEventListener(name,fn,capture){handlers.push({name,fn,capture})},querySelector(){return null},querySelectorAll(){return[]},contains(){return true},body:{classList:{add(){},remove(){}}}};
+  const root={dataset:{},style:{}};
+  const document={documentElement:root,getElementById:get,addEventListener(name,fn,capture){handlers.push({name,fn,capture})},querySelector(){return null},querySelectorAll(){return[]},contains(){return true},body:{classList:{add(){},remove(){}}}};
   const location=new URL('https://campus.test/'+hash),history={replaceState(a,b,path){location.href=new URL(path,location.origin).href}};
   const ctx=vm.createContext({document,window:{addEventListener(){},scrollTo(){}},location,history,console,setTimeout,clearTimeout,Date,Intl,URL,URLSearchParams,Blob,Response,FormData:class{constructor(form){this.values=Object.entries(form.values||{})}[Symbol.iterator](){return this.values[Symbol.iterator]()}},fetch:async(url,options={})=>{
     calls.push({url,options});if(offline)throw Error('Hors ligne');
@@ -27,8 +28,22 @@ async function context({signedIn=true,offline=false,recoveryValid=false,password
     if(url.endsWith('/auth/login'))return Response.json({user});
     return Response.json({ok:true});
   }});
-  vm.runInContext(core,ctx);vm.runInContext(experience,ctx);await new Promise(resolve=>setTimeout(resolve,50));return{ctx,get,calls,handlers,location};
+  vm.runInContext(theme,ctx);vm.runInContext(core,ctx);vm.runInContext(experience,ctx);await new Promise(resolve=>setTimeout(resolve,50));return{ctx,get,calls,handlers,location,root};
 }
+
+test('public, account and academic screens share the theme without rerendering a form or calling the API',async()=>{
+  const {ctx,get,calls,root}=await context({signedIn:false});
+  for(const page of ['landing','campus','news','events','help','login','register','forgot-password','reset-password','documents']){
+    vm.runInContext(`state.page='${page}';render()`,ctx);assert.match(get('app').innerHTML,/data-action="toggle-theme"/,page);
+  }
+  vm.runInContext("state.page='register';render()",ctx);const before=get('app').innerHTML,requestCount=calls.length;
+  await vm.runInContext("onAction('toggle-theme',{dataset:{}})",ctx);assert.equal(root.dataset.theme,'light');assert.equal(get('app').innerHTML,before);assert.equal(calls.length,requestCount);
+  vm.runInContext("state.page='login';render()",ctx);assert.match(get('app').innerHTML,/Activer le mode sombre/);assert.doesNotMatch(get('app').innerHTML,/name="program"/);
+  const member=await context();
+  for(const page of ['choose-profile','dashboard','department','modules','schedule','announcements','documents','library','complaints','events','registrations','organizer','news','lost','collaboration','assistant','recommendations','map','marketplace','profile','help']){
+    vm.runInContext(`state.page='${page}';render()`,member.ctx);assert.match(member.get('app').innerHTML,/data-action="toggle-theme"/,page);
+  }
+});
 
 test('public landing stays usable when Supabase is offline and stays within the academic scope',async()=>{
   const {ctx,get}=await context({signedIn:false,offline:true});

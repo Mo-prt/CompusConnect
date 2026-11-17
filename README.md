@@ -6,6 +6,8 @@ Les écrans suivent les fonctionnalités **F01 à F08 du cahier des charges** : 
 
 Les contrats et droits des routes sont décrits dans [la documentation API](docs/API.md).
 
+Le **mode sombre** anthracite et or est actif par défaut sur toutes les pages. Le bouton soleil/lune permet de revenir au mode clair. Le choix est mémorisé dans le navigateur, appliqué dès le chargement et synchronisé entre les onglets, sans recharger les formulaires. Aucune configuration Supabase supplémentaire n’est nécessaire.
+
 L’option **Mot de passe oublié ?** utilise les emails de Supabase Auth. Ajouter les URL de retour dans **Authentication → URL Configuration** avant les essais : [configuration et test de la récupération](docs/RECUPERATION_MOT_DE_PASSE.md). Aucune migration SQL supplémentaire n’est nécessaire pour cette option.
 
 Le bouton **Filtrer** des actualités ouvre les choix de catégorie et de recherche pour les visiteurs comme pour les membres.
@@ -56,6 +58,7 @@ Les données du campus viennent de votre base. Les anciens comptes de démonstra
 
 - `src/` : HTML, CSS et interactions du frontend.
 - `src/experience.js`, `src/experience.css` : navigation et écrans du cahier des charges.
+- `src/theme.js`, `src/theme.css` : thème sombre/clair, initialisation avant affichage et préférence locale.
 - `worker/api.mjs` : validation et contrôles d’accès.
 - `worker/auth.mjs` : cookies, validation des sessions et renouvellement.
 - `worker/recovery.mjs` : récupération par email et échange PKCE côté serveur.
