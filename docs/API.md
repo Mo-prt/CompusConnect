@@ -7,8 +7,8 @@ Préfixe : `/api`. JSON UTF-8 pour les écritures, sauf les uploads binaires. Au
 | Méthode et chemin | Contenu / résultat |
 | --- | --- |
 | `GET /auth/me` | `{user}` ou `{user:null}`. |
-| `POST /auth/register` | `{name,email,password,program}`. `program` est le code de filière. Peut répondre `202` avec `requiresEmailConfirmation`. |
-| `POST /auth/login` | `{email,password,program}`. Les rôles sont lus dans les tables du projet. |
+| `POST /auth/register` | `{name,email,password,program}`. `program` est le code de filière, obligatoire à l’inscription. Email universitaire au format `prenom.nom@usms.ac.ma` ; casse et espaces extérieurs normalisés, prénoms/noms composés avec tirets acceptés. Une autre adresse ou un format invalide donne `400`. Peut répondre `202` avec `requiresEmailConfirmation`. |
+| `POST /auth/login` | `{email,password}`. La filière est récupérée depuis le profil ; pour un profil créé après confirmation email, elle vient des métadonnées enregistrées à l’inscription. Un champ `program` ajouté à la connexion est ignoré et ne modifie pas le profil. Les rôles sont lus dans les tables du projet. |
 | `POST /auth/logout` | Révoque la session locale et efface les cookies. |
 | `POST /auth/recover` | `{email}` ; réponse générique `{message}` pour ne pas révéler les comptes. Déclenche l’email Supabase et pose un cookie de preuve PKCE, valable 20 minutes. |
 | `GET /auth/recovery/callback?code=…` | Callback d’email ; échange le code PKCE côté serveur puis redirige vers `/#reset-password`, ou `/?recovery=invalid#forgot-password` si le lien est invalide. |

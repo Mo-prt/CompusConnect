@@ -83,11 +83,12 @@ export async function handleApi(request,env){
     const auth=role=>{must(user,'Connectez-vous pour continuer.',401);requireActive(user);if(role)must(can(user,role),'Votre profil ne permet pas cette action.',403)};
     if(path==='/auth/me')return json({user:safeUser(user)});
     if((path==='/auth/login'||path==='/auth/register')&&method==='POST'){
-      const b=await body(),email=text(b.email,180).toLowerCase(),password=typeof b.password==='string'?b.password:'';
-      must(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)&&password.length>=8&&password.length<=128,'Saisissez un email valide et un mot de passe de 8 à 128 caractères.');
-      const program=refs.programs.find(p=>p.id===b.program);must(program,'Sélectionnez une filière disponible.');
-      let signed;
+      const b=await body(),email=typeof b.email==='string'?b.email.trim().toLowerCase():'',password=typeof b.password==='string'?b.password:'';
+      must(email.length<=180&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)&&password.length>=8&&password.length<=128,'Saisissez un email valide et un mot de passe de 8 à 128 caractères.');
+      let signed,program;
       if(path==='/auth/register'){
+        must(/^[a-z]+(?:-[a-z]+)*\.[a-z]+(?:-[a-z]+)*@usms\.ac\.ma$/.test(email),'Utilisez votre email universitaire au format prenom.nom@usms.ac.ma.');
+        program=refs.programs.find(p=>p.id===b.program);must(program,'Sélectionnez une filière disponible.');
         const name=text(b.name,100);must(name.length>=2,'Indiquez votre nom complet.');const [first_name,last_name]=firstAndLast(name);
         signed=await db.signUp(email,password,{first_name,last_name,full_name:name,name,program_id:program.uuid},url.origin);
         if(!signed.access_token){cookies=clearSessionCookies();return json({requiresEmailConfirmation:true,message:'Consultez votre messagerie pour confirmer votre adresse, puis connectez-vous.'},202)}
@@ -97,10 +98,12 @@ export async function handleApi(request,env){
       if(current)must(current.account_status==='active','Votre compte est en attente, suspendu ou désactivé.',403);
       if(!current||!current.roles.length){
         const metadata=signed.user.user_metadata||{};
-        await db.ensureProfile(signed.user,program.uuid,text(metadata.first_name,100)||email.split('@')[0],text(metadata.last_name,100));
+        const profileProgram=refs.programs.find(p=>p.uuid===(current?.program_id||program?.uuid||metadata.program_id));
+        must(profileProgram,'Votre filière doit être configurée. Contactez l’administration.',403);
+        await db.ensureProfile(signed.user,profileProgram.uuid,text(metadata.first_name,100)||email.split('@')[0],text(metadata.last_name,100));
       }
       const display=await displayUser(db,signed.user,refs);requireActive(display);
-      if(display.programId)must(display.program===program.id,'La filière choisie ne correspond pas à votre profil.',401);
+      if(program&&display.programId)must(display.program===program.id,'La filière choisie ne correspond pas à votre profil.',401);
       cookies=sessionCookies(signed,b.remember!==false);
       if(b.remember!==false&&readCookie(request,'campus_ephemeral'))cookies.push('campus_ephemeral=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0');
       return json({user:safeUser(display)});

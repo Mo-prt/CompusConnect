@@ -36,7 +36,7 @@ before(async()=>{
   await pg.exec(await fs.readFile(new URL('../supabase/migrations/20261116000100_campus_services.sql',import.meta.url),'utf8'));
   originalFetch=globalThis.fetch;globalThis.fetch=postgrestFixture(pg,accounts,extraTables);
   for(const name of Object.keys(people)){
-    const login=await call('/auth/login','POST',{email:name.toLowerCase()+'@example.test',password:'password-test',program:['outsider','otherTeacher'].includes(name)?'SCI':'SIIA'},'anonymous');
+    const login=await call('/auth/login','POST',{email:name.toLowerCase()+'@example.test',password:'password-test'},'anonymous');
     assert.equal(login.status,200,JSON.stringify(login.data));sessions[name]=login.response.headers.getSetCookie().map(c=>c.split(';')[0]).join('; ');
   }
 });
@@ -168,7 +168,7 @@ test('authentication supports password recovery and keeps third-party login disa
   }
   assert.equal((await call('/auth/recover','POST',{email:'student@example.test'},'anonymous')).status,200);
   assert.equal((await call('/auth/password','POST',{password:'new-password',confirmation:'new-password'},'anonymous')).status,401);
-  assert.equal((await call('/auth/login','POST',{email:'student@example.test',password:'password-test',program:'SIIA'},'anonymous')).status,200);
+  assert.equal((await call('/auth/login','POST',{email:'student@example.test',password:'password-test'},'anonymous')).status,200);
 });
 
 test('the optional AI connector sends only accessible sources and refuses unrecognized citations',async()=>{

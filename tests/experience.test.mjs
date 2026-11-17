@@ -40,7 +40,7 @@ test('anonymous visitors can discover the campus, list news and read a complete 
   const {ctx,get,calls}=await context({signedIn:false});
   assert.match(get('app').innerHTML,/Actualités du campus/);assert.match(get('app').innerHTML,/Actualité ouverte aux visiteurs/);
   vm.runInContext("state.page='campus';render()",ctx);assert.match(get('app').innerHTML,/Informatique/);assert.match(get('app').innerHTML,/Systèmes intelligents/);assert.ok(!get('app').innerHTML.includes('class="sidebar"'));
-  vm.runInContext("state.page='news';render()",ctx);assert.match(get('app').innerHTML,/Actualité ouverte aux visiteurs/);assert.match(get('app').innerHTML,/sans connexion/);assert.ok(!get('app').innerHTML.includes('experience-auth'));
+  vm.runInContext("state.page='news';render()",ctx);assert.match(get('app').innerHTML,/Actualité ouverte aux visiteurs/);assert.match(get('app').innerHTML,/filter-news/);assert.ok(!get('app').innerHTML.includes('experience-auth'));
   vm.runInContext(`state.page='news/${articleId}';render()`,ctx);await new Promise(resolve=>setTimeout(resolve,25));
   assert.match(get('app').innerHTML,/Texte complet de la publication/);assert.match(get('app').innerHTML,/public-article-cover/);assert.match(get('app').innerHTML,/#news/);
   assert.ok(calls.some(c=>c.url==='/api/public'));assert.ok(!calls.some(c=>c.url.includes('/bootstrap')||c.url==='/api/campus'));
@@ -82,14 +82,43 @@ test('user content is escaped in lists, chat answers and source labels',async()=
   assert.ok(!get('app').innerHTML.includes('<script>danger'));assert.match(get('app').innerHTML,/&lt;b&gt;Source/);
 });
 
-test('login submits the required identity fields and registration rejects mismatched passwords',async()=>{
+test('login sends only email and password while registration checks confirmation',async()=>{
   const {ctx,get,calls,handlers}=await context({signedIn:false});
   const submit=handlers.find(h=>h.name==='submit'&&h.capture===true).fn;
   const form={id:'experience-auth',dataset:{mode:'register'},values:{name:'Amine',email:'amine@example.test',password:'password-test',confirmation:'different',program:'SIIA'},elements:{},querySelector(selector){return selector.includes('error')?get('test-error'):{disabled:false}}};
   await submit({target:form,preventDefault(){},stopImmediatePropagation(){}});assert.match(get('test-error').innerHTML,/ne correspondent pas/);assert.ok(!calls.some(c=>c.url.endsWith('/auth/register')));
   form.dataset.mode='login';delete form.values.name;form.values.confirmation='password-test';
   await submit({target:form,preventDefault(){},stopImmediatePropagation(){}});
-  const call=calls.find(c=>c.url.endsWith('/auth/login'));assert.deepEqual(Object.keys(JSON.parse(call.options.body)).sort(),['email','password','program']);assert.equal(vm.runInContext('state.page',ctx),'choose-profile');
+  const call=calls.find(c=>c.url.endsWith('/auth/login'));assert.deepEqual(Object.keys(JSON.parse(call.options.body)).sort(),['email','password']);assert.equal(vm.runInContext('state.page',ctx),'choose-profile');
+});
+
+test('only registration asks for a programme and enforces the university email format',async()=>{
+  const {ctx,get,calls,handlers}=await context({signedIn:false});
+  vm.runInContext("state.data.programs=[];state.page='login';render()",ctx);let html=get('app').innerHTML;
+  assert.doesNotMatch(html,/name="program"|pattern=|type="submit" disabled/);assert.match(html,/#forgot-password/);
+  vm.runInContext("state.page='register';render()",ctx);html=get('app').innerHTML;assert.match(html,/name="program" required/);assert.match(html,/pattern=/);assert.match(html,/Format : prenom.nom@usms.ac.ma/);assert.match(html,/type="submit" disabled/);
+  const submit=handlers.find(h=>h.name==='submit'&&h.capture===true).fn;
+  const form=recoveryForm('register',{name:'Amine Test',email:'amine.test@gmail.com',password:'password-test',confirmation:'password-test',program:'SIIA'},get);
+  await submit(submitEvent(form));assert.match(get('test-error').innerHTML,/prenom.nom@usms.ac.ma/);assert.ok(!calls.some(call=>call.url.endsWith('/auth/register')));
+  for(const email of ['prenom.nom@usms.ac.ma','Jean-Pierre.El-Alami@USMS.AC.MA'])assert.equal(vm.runInContext(`isUniversityEmail(${JSON.stringify(email)})`,ctx),true);
+  for(const email of ['prenom@usms.ac.ma','prenom..nom@usms.ac.ma','prenom.nom@usms.ac.ma.evil'])assert.equal(vm.runInContext(`isUniversityEmail(${JSON.stringify(email)})`,ctx),false);
+  form.values.email=' Amine.Test@USMS.AC.MA ';await submit(submitEvent(form));
+  const call=calls.find(call=>call.url.endsWith('/auth/register'));assert.deepEqual(JSON.parse(call.options.body),{email:'amine.test@usms.ac.ma',password:'password-test',name:'Amine Test',program:'SIIA'});
+});
+
+test('news filters are behind one button and can be applied, edited and reset for visitors and members',async()=>{
+  for(const signedIn of [false,true]){
+    const {ctx,get,handlers}=await context({signedIn,hash:'#news'}),group=signedIn?'news':'public-news';
+    vm.runInContext(`state.publicData.news.push({id:'other',title:'Forum de recherche',content:'Rencontre scientifique.',category:'research',published_at:'2026-11-16'});state.workspace.news=state.publicData.news;render()`,ctx);
+    let html=get('app').innerHTML;assert.match(html,/filter-news/);assert.doesNotMatch(html,/id="content-search"|class="tabs"|Les nouvelles de la FPK, accessibles à tous sans connexion/);
+    await vm.runInContext(`onAction('filter-news',{dataset:{group:'${group}'}})`,ctx);
+    html=get('modal-root').innerHTML;assert.match(html,/name="category"/);assert.match(html,/name="query"/);assert.match(html,/Réinitialiser/);
+    const submit=handlers.find(h=>h.name==='submit'&&h.capture===true).fn,form={...recoveryForm('',{category:'research',query:'Forum'},get),id:'news-filter-form',dataset:{group}};
+    await submit(submitEvent(form));html=get('app').innerHTML;assert.match(html,/Forum de recherche/);assert.doesNotMatch(html,/Actualité ouverte aux visiteurs/);assert.match(html,/Filtrer \(2\)/);assert.equal(get('modal-root').innerHTML,'');
+    await vm.runInContext(`onAction('filter-news',{dataset:{group:'${group}'}})`,ctx);html=get('modal-root').innerHTML;assert.match(html,/value="research" selected/);assert.match(html,/value="Forum"/);
+    form.values.query='aucun résultat';await submit(submitEvent(form));assert.doesNotMatch(get('app').innerHTML,/Forum de recherche/);assert.match(get('app').innerHTML,/filter-news/);
+    await vm.runInContext(`onAction('reset-news-filters',{dataset:{group:'${group}'}})`,ctx);html=get('app').innerHTML;assert.match(html,/Forum de recherche/);assert.match(html,/Actualité ouverte aux visiteurs/);assert.doesNotMatch(html,/Filtrer \(/);
+  }
 });
 
 function recoveryForm(mode,values,get){return{id:'experience-auth',dataset:{mode},values,elements:{},querySelector(selector){return selector.includes('error')?get('test-error'):{disabled:false}}}}

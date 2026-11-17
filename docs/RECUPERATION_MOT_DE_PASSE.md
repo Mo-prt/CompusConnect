@@ -37,7 +37,7 @@ Les fichiers `.env` et `.dev.vars` conservent la configuration serveur existante
 2. Saisir l’email d’un compte Supabase Auth auquel vous avez accès.
 3. Ouvrir le **dernier lien reçu dans le même navigateur**. Éviter le navigateur intégré de la messagerie ; copier le lien dans le navigateur du site si nécessaire. Ne pas alterner entre `localhost` et `127.0.0.1`.
 4. Saisir deux fois un nouveau mot de passe de 8 à 128 caractères, compatible avec la politique du projet Supabase.
-5. Vérifier que la nouvelle connexion fonctionne avec l’email, le nouveau mot de passe et la filière du compte. L’ancien mot de passe doit être refusé.
+5. Vérifier que la nouvelle connexion fonctionne avec l’email et le nouveau mot de passe, sans sélectionner de filière. L’ancien mot de passe doit être refusé.
 
 ## Liens et erreurs
 

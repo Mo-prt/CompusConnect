@@ -8,6 +8,8 @@ Les contrats et droits des routes sont décrits dans [la documentation API](docs
 
 L’option **Mot de passe oublié ?** utilise les emails de Supabase Auth. Ajouter les URL de retour dans **Authentication → URL Configuration** avant les essais : [configuration et test de la récupération](docs/RECUPERATION_MOT_DE_PASSE.md). Aucune migration SQL supplémentaire n’est nécessaire pour cette option.
 
+Le bouton **Filtrer** des actualités ouvre les choix de catégorie et de recherche pour les visiteurs comme pour les membres.
+
 Les visiteurs sans compte peuvent consulter **Découvrir la FPK**, les départements et filières, les **actualités publiées avec leurs images**, et les événements. Les brouillons et publications futures restent exclus. L’espace académique, les documents et les services personnels exigent une connexion. Cette extension publique n’exige pas de nouvelle migration SQL.
 
 ## Démarrage
@@ -29,7 +31,7 @@ Les compléments SQL sont `supabase/migrations/20261111000100_existing_schema.sq
 ## Nouveaux services
 
 - Accueil du portail étudiant, identité anthracite/ivoire/or et photographie de la faculté.
-- Inscription et connexion par email, mot de passe et filière ; routage limité aux profils déjà autorisés.
+- Inscription avec un email universitaire `prenom.nom@usms.ac.ma`, un mot de passe et une filière ; connexion avec email et mot de passe uniquement. La filière est récupérée depuis le profil enregistré.
 - Récupération du mot de passe par email, lien temporaire et confirmation du nouveau mot de passe.
 - Annonces, documents et bibliothèque avec fichiers privés et audiences par filière.
 - Réclamations privées, messages et traitement ; actualités, Lost & Found et projets collaboratifs.

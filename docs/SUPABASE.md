@@ -53,8 +53,9 @@ La vérification de connexion lit uniquement la description de l’API et ne mod
 
 L’inscription et la connexion utilisent maintenant **Supabase Auth**. Les profils académiques restent dans `public.profiles` et les rôles sont lus depuis `roles` / `user_roles`.
 
-- Les comptes déjà présents dans Supabase Auth peuvent se connecter avec leur email, leur mot de passe et la filière liée à leur profil.
+- Les comptes déjà présents dans Supabase Auth se connectent avec leur email et leur mot de passe uniquement. Le backend récupère la filière liée au profil ; il ne demande plus de sélection à la connexion. Le nouveau format universitaire est exigé pour la création de compte, sans bloquer les anciens comptes utilisant une autre adresse.
 - Si la confirmation email est activée dans Supabase, un nouveau compte doit d’abord confirmer son email puis se connecter. Dans **Authentication → URL Configuration**, configurer l’URL du site et les URL de redirection autorisées pour le test local (`http://localhost:8787`) et pour le domaine de production. La page de retour retire les jetons éventuels du fragment d’URL et propose la connexion par mot de passe.
+- À l’inscription, renseigner un email `prenom.nom@usms.ac.ma` et une filière disponible. Le format est contrôlé dans le formulaire et dans l’API avant la création du compte Auth. La confirmation email Supabase reste le mécanisme de vérification de la messagerie. Ces changements ne nécessitent pas de migration SQL.
 - Pour **Mot de passe oublié ?**, ajouter aussi les URL complètes se terminant par `/api/auth/recovery/callback`, conserver le lien `{{ .ConfirmationURL }}` du modèle Reset Password et vérifier l’envoi SMTP : [guide de récupération](RECUPERATION_MOT_DE_PASSE.md). Ce parcours ne nécessite pas de migration SQL supplémentaire.
 - À la première connexion validée, un profil manquant est créé et reçoit uniquement le rôle `student` s’il ne possède aucun rôle.
 - Un compte `pending`, `suspended` ou `disabled` n’est pas activé automatiquement.

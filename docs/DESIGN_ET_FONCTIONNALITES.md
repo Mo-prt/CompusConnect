@@ -6,7 +6,7 @@ Le cahier des charges fonctionnel et technique FPK est la référence. La maquet
 
 | Référence | Écrans | Fonctions conservées |
 | --- | --- | --- |
-| **F01 — MVP1** | Inscription, connexion, choix de l’espace, profil | Email, mot de passe et filière ; confirmation email ; rôles Étudiant, Enseignant/Chef de département et Organisateur déjà attribués au compte. Aucun choix de profil ne donne de permissions. |
+| **F01 — MVP1** | Inscription, connexion, choix de l’espace, profil | Inscription avec email universitaire `prenom.nom@usms.ac.ma`, mot de passe et filière ; connexion avec email et mot de passe, filière lue depuis le profil ; confirmation email ; rôles Étudiant, Enseignant/Chef de département et Organisateur déjà attribués au compte. Aucun choix de profil ne donne de permissions. |
 | **F02 — MVP1** | Mon département, modules, emploi du temps | Fiche du responsable, coordonnées académiques, modules et objectifs, enseignants, volumes horaires, filière/semestre, consultation hebdomadaire et téléchargement/impression de l’EDT. |
 | **F03 — MVP1** | Catalogue, détail, inscriptions et espace organisateur | Filtres catégorie/date/filière, informations de l’événement, inscription/désinscription, contrôle des places, création, modification, annulation et participants. |
 | **F04 — MVP2** | Annonces, documents et réclamations | Communications ciblées des enseignants, supports de cours/TD/TP, téléchargement autorisé, dépôt et suivi d’une réclamation pédagogique ou technique. |
@@ -39,6 +39,8 @@ Les textes et éléments de marque miniers sont retirés. La navigation ne compo
 Les anciennes routes applicatives de connexion tierce, de demandes de rôles et de notifications ne sont plus exposées. Les migrations et tables historiques ne sont pas supprimées : cette correction ne détruit aucune donnée.
 
 La récupération du mot de passe a été ajoutée sur demande explicite de l’équipe comme complément à F01 : email via Supabase Auth, retour PKCE côté serveur, lien temporaire et confirmation du nouveau mot de passe. Elle reprend le thème des écrans de connexion et ne demande pas de filière pour envoyer le lien. Voir [configuration et essai](RECUPERATION_MOT_DE_PASSE.md).
+
+Les actualités publiques et celles de l’espace membre utilisent un bouton **Filtrer** à la place des onglets de catégorie et de la barre de recherche. Il ouvre une fenêtre avec catégorie et mot-clé, applique la sélection et permet de la réinitialiser.
 
 ## Présentation et accessibilité
 
@@ -126,4 +128,4 @@ npx.cmd wrangler@4 dev dist/server/index.js --port 8787
 
 Les tests exécutent les vraies fonctions SQL dans PGlite et simulent les transports Auth, PostgREST et Storage. Les contrôles de frontend utilisent un environnement DOM simulé et ne remplacent pas une recette visuelle au navigateur. La CI GitHub exécute les tests et la compilation sans clé réelle.
 
-Avant une livraison, essayer avec de vrais comptes : confirmation email, connexion par filière, profils autorisés, téléchargement privé, cycle de réclamation, partage inter-filières, réservation Marketplace et navigation mobile/clavier. Cette étape valide la configuration du projet distant, qui n’est pas modifiée automatiquement par un `git pull`.
+Avant une livraison, essayer avec de vrais comptes : confirmation email, connexion sans sélection de filière, inscription avec email universitaire, profils autorisés, téléchargement privé, cycle de réclamation, partage inter-filières, réservation Marketplace et navigation mobile/clavier. Cette étape valide la configuration du projet distant, qui n’est pas modifiée automatiquement par un `git pull`.

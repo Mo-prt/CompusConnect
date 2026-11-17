@@ -19,7 +19,7 @@ async function call(path,method='GET',body,cookie,headers={}){
   const response=await handleApi(new Request('https://campus.test/api'+path,{method,headers:{'Content-Type':'application/json',Origin:'https://campus.test',...(cookie?{Cookie:cookie}:{}),...headers},...(body?{body:JSON.stringify(body)}:{})}),env);
   return {status:response.status,data:await response.json(),cookie:response.headers.getSetCookie().map(c=>c.split(';')[0]).join('; '),cookies:response.headers.getSetCookie()};
 }
-const login=(name,program=code)=>call('/auth/login','POST',{email:name+'@example.test',password,program});
+const login=name=>call('/auth/login','POST',{email:name+'@example.test',password});
 before(async()=>{
   pg=new PGlite();await pg.exec('CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role BYPASSRLS;');
   await pg.exec(await fs.readFile(new URL('./helpers/existing-schema.sql',import.meta.url),'utf8'));
@@ -84,7 +84,8 @@ test('bootstrap reads existing programs, departments, modules and nonstandard se
 
 test('Supabase Auth validates passwords and roles come exclusively from user_roles',async()=>{
   assert.equal((await call('/auth/login','POST',{email:'student@example.test',password:'wrongpass',program:code})).status,401);
-  assert.equal((await login('student',otherCode)).status,401);
+  const suppliedProgram=await call('/auth/login','POST',{email:'student@example.test',password,program:otherCode});
+  assert.equal(suppliedProgram.status,200);assert.equal(suppliedProgram.data.user.program,code);
   student=await login('student');organizer=await login('organizer');assert.equal(student.status,200);assert.equal(organizer.status,200);
   assert.equal(student.data.user.role,'student');assert.deepEqual(student.data.user.roles,['student']);
   assert.ok(!JSON.stringify(student.data).includes('access-'));assert.equal(student.cookies.length,2);
@@ -94,14 +95,33 @@ test('Supabase Auth validates passwords and roles come exclusively from user_rol
 });
 
 test('signup handles email confirmation and only assigns the student role after validated login',async()=>{
-  const body={email:'new@example.test',password,name:'Nouvel Étudiant',program:code,role:'organizer'};
+  const body={email:'nouvel.etudiant@usms.ac.ma',password,name:'Nouvel Étudiant',program:code,role:'organizer'};
   const signup=await call('/auth/register','POST',body);assert.equal(signup.status,202);assert.equal(signup.data.requiresEmailConfirmation,true);
   const account=accounts.find(a=>a.email===body.email);assert.equal(account.metadata.role,undefined);
   assert.equal((await pg.query('SELECT count(*)::int AS n FROM public.profiles WHERE id=$1',[account.id])).rows[0].n,0);
   assert.equal((await call('/auth/login','POST',body)).status,401);
   account.confirmed=true;
-  const signed=await call('/auth/login','POST',body);assert.equal(signed.status,200);assert.equal(signed.data.user.role,'student');
+  const signed=await call('/auth/login','POST',{email:body.email,password});assert.equal(signed.status,200);assert.equal(signed.data.user.role,'student');assert.equal(signed.data.user.program,code);
   assert.equal((await pg.query('SELECT r.code FROM public.user_roles ur JOIN public.roles r ON r.id=ur.role_id WHERE ur.user_id=$1',[account.id])).rows[0].code,'student');
+});
+
+test('registration validates the university email format and requires a programme before creating an Auth account',async()=>{
+  const originalCount=accounts.length,body={password,name:'Jean-Pierre El-Alami',program:code};
+  for(const email of ['student@gmail.com','prenom@usms.ac.ma','prenom.nom@students.usms.ac.ma','prenom.nom@usms.ac.ma.evil','prenom..nom@usms.ac.ma','-prenom.nom@usms.ac.ma','prenom.nom-@usms.ac.ma','prenom.nom+test@usms.ac.ma']){
+    const result=await call('/auth/register','POST',{...body,email});assert.equal(result.status,400,email);assert.match(result.data.error,/prenom.nom@usms.ac.ma/);
+  }
+  for(const program of [undefined,'unknown-program'])assert.equal((await call('/auth/register','POST',{...body,email:'jean-pierre.el-alami@usms.ac.ma',program})).status,400);
+  assert.equal(accounts.length,originalCount);
+  const result=await call('/auth/register','POST',{...body,email:' Jean-Pierre.El-Alami@USMS.AC.MA '});assert.equal(result.status,202);
+  const account=accounts.find(account=>account.email==='jean-pierre.el-alami@usms.ac.ma');assert.equal(account.metadata.program_id,ids.program);
+  account.confirmed=true;
+  const signed=await call('/auth/login','POST',{email:'JEAN-PIERRE.EL-ALAMI@USMS.AC.MA',password,program:otherCode});assert.equal(signed.status,200);assert.equal(signed.data.user.program,code);assert.deepEqual(signed.data.user.roles,['student']);
+});
+
+test('login cannot select a programme or create a profile without a recorded programme',async()=>{
+  const orphanId=id(80);accounts.push({id:orphanId,email:'orphan@example.test',password,confirmed:true,metadata:{}});
+  const result=await call('/auth/login','POST',{email:'orphan@example.test',password,program:code});assert.equal(result.status,403);assert.match(result.data.error,/Contactez l’administration/);
+  assert.equal((await pg.query('SELECT count(*)::int AS n FROM profiles WHERE id=$1',[orphanId])).rows[0].n,0);
 });
 
 test('forged or expired access tokens cannot impersonate a profile and refresh rotates cookies',async()=>{
