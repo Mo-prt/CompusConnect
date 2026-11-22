@@ -1,4 +1,5 @@
 import {ApiError} from './errors.mjs';
+import {teachingWorkspace} from './teaching.mjs';
 
 const check=(condition,message='Cette action n’est pas autorisée.',status=403)=>{if(!condition)throw new ApiError(message,status)};
 const has=(user,...roles)=>user.roles.includes('admin')||roles.some(role=>user.roles.includes(role));
@@ -20,10 +21,10 @@ export async function academicScope(db,user,refs){
   const allModules=await db.all('modules');
   const ids=new Set(links.filter(link=>programs.some(p=>p.uuid===link.program_id)).map(link=>link.module_id));
   const modules=allModules.filter(m=>ids.has(m.id)||m.responsible_teacher_id===user.id||has(user,'admin'));
-  return {programs,links,modules,canTeach:module=>!!module&&(has(user,'admin')||has(user,'teacher')&&module.responsible_teacher_id===user.id||has(user,'department_head')&&links.some(l=>l.module_id===module.id&&programs.some(p=>p.uuid===l.program_id&&p.departmentId===user.departmentId)))};
+  return {programs,links,modules,allModules,canTeach:module=>!!module&&(has(user,'admin')||has(user,'teacher')&&module.responsible_teacher_id===user.id||has(user,'department_head')&&links.some(l=>l.module_id===module.id&&programs.some(p=>p.uuid===l.program_id&&p.departmentId===user.departmentId)))};
 }
 
-export async function readCampus(db,user,refs,includeEventSuggestions=false){
+export async function readCampus(db,user,refs,includeEventSuggestions=false,includeTeaching=false){
   const scope=await academicScope(db,user,refs),unavailable=[];
   const read=async(table,query={})=>{try{return await db.all(table,query)}catch(error){if(!missing(error))throw error;unavailable.push(table);return[]}};
   const [announcements,targets,documents,library,libraryTargets,complaints,news,lost,spaces,members,resources,locations,listings,categories,transactions,recommendations,images]=await Promise.all([
@@ -39,7 +40,8 @@ export async function readCampus(db,user,refs,includeEventSuggestions=false){
   const readableSpaces=spaces.filter(row=>row.status==='open'||row.created_by===user.id||members.some(m=>m.space_id===row.id&&m.user_id===user.id)||has(user,'admin'));
   let departmentStudents=[];
   if(has(user,'department_head')&&user.departmentId)departmentStudents=await db.all('profiles',{department_id:'eq.'+user.departmentId,select:'id'});
-  const readableComplaints=complaints.filter(row=>has(user,'admin')||row.student_id===user.id||row.assigned_to===user.id&&has(user,'teacher','department_head')||has(user,'department_head')&&row.complaint_type==='pedagogical'&&departmentStudents.some(p=>p.id===row.student_id));
+  const canHandleComplaint=row=>has(user,'admin')||row.student_id!==user.id&&(row.assigned_to===user.id&&has(user,'teacher','department_head')||has(user,'department_head')&&row.complaint_type==='pedagogical'&&departmentStudents.some(p=>p.id===row.student_id));
+  const readableComplaints=complaints.filter(row=>row.student_id===user.id||canHandleComplaint(row)).map(row=>({...row,manageable:canHandleComplaint(row)}));
   const readableResources=resources.filter(row=>readableSpaces.some(s=>s.id===row.space_id)&&(!row.library_resource_id||readableLibrary.some(r=>r.id===row.library_resource_id)));
   const result={
     modules:scope.modules.map(m=>({...m,writable:scope.canTeach(m)})),
@@ -51,6 +53,7 @@ export async function readCampus(db,user,refs,includeEventSuggestions=false){
     recommendations:recommendations.filter(row=>(!row.expires_at||new Date(row.expires_at)>new Date())&&(row.target_type==='library_resource'&&readableLibrary.some(x=>x.id===row.target_id)||row.target_type==='shared_resource'&&readableResources.some(x=>x.id===row.target_id))),
     unavailable:[...new Set(unavailable)]
   };
+  if(includeTeaching)result.teaching=await teachingWorkspace(db,user,refs,scope);
   const eventSuggestions=recommendations.filter(row=>row.target_type==='event'&&(!row.expires_at||new Date(row.expires_at)>new Date()));
   if(includeEventSuggestions&&eventSuggestions.length){
     const {loadEvents}=await import('./storage/catalog.mjs');
@@ -67,7 +70,7 @@ async function ownedFile(db,fileId,user){
 }
 async function resolveComplaint(db,complaintId,user,refs){
   const row=await db.one('complaints',{id:'eq.'+id(complaintId)});check(row,'Réclamation introuvable.',404);
-  const workspace=await readCampus(db,user,refs);check(workspace.complaints.some(x=>x.id===row.id));return row;
+  const workspace=await readCampus(db,user,refs),visible=workspace.complaints.find(x=>x.id===row.id);check(visible);return {...row,manageable:visible.manageable};
 }
 async function resolveSpace(db,spaceId,user,write=false){
   const space=await db.one('collaboration_spaces',{id:'eq.'+id(spaceId)});check(space,'Espace introuvable.',404);
@@ -158,7 +161,7 @@ export async function handleCampus({request,db,user,refs,env,path,method,body}){
   if(!roots.some(root=>path===root||path.startsWith(root.endsWith('/')?root:root+'/')))return null;
   check(user,'Connectez-vous pour accéder à cet espace.',401);check(user.accountStatus==='active');
   const respond=(value,status=200)=>({value,status});
-  if(path==='/campus'&&method==='GET')return respond(await readCampus(db,user,refs,true));
+  if(path==='/campus'&&method==='GET')return respond(await readCampus(db,user,refs,true,true));
   if(path==='/uploads'&&method==='POST')return respond({file:await upload(request,db,user)},201);
   const matchFile=path.match(/^\/files\/([^/]+)$/);
   if(matchFile&&method==='GET'){
@@ -200,7 +203,12 @@ export async function handleCampus({request,db,user,refs,env,path,method,body}){
   if(path==='/complaints'&&method==='POST'){
     check(has(user,'student'));const input=await body(),scope=await academicScope(db,user,refs);
     if(input.module_id)check(scope.modules.some(m=>m.id===id(input.module_id)),'Module inaccessible.');
-    return respond(one(await db.insert('complaints',{student_id:user.id,module_id:input.module_id||null,subject:required(input.subject,'objet'),description:required(input.description,'description',10,6000),complaint_type:pick(input.complaint_type,['pedagogical','technical'],'catégorie'),status:'submitted'})),201);
+    const type=pick(input.complaint_type,['pedagogical','technical'],'catégorie'),module=scope.modules.find(m=>m.id===input.module_id);let assignedTo=null;
+    if(type==='pedagogical'&&module?.responsible_teacher_id&&module.responsible_teacher_id!==user.id){
+      const responsible=await db.profile(module.responsible_teacher_id);
+      if(responsible?.account_status==='active'&&responsible.roles.some(role=>['teacher','department_head','admin'].includes(role)))assignedTo=responsible.id;
+    }
+    return respond(one(await db.insert('complaints',{student_id:user.id,module_id:input.module_id||null,assigned_to:assignedTo,subject:required(input.subject,'objet'),description:required(input.description,'description',10,6000),complaint_type:type,status:'submitted'})),201);
   }
   const complaint=path.match(/^\/complaints\/([^/]+)(?:\/(messages))?$/);
   if(complaint){
@@ -208,7 +216,7 @@ export async function handleCampus({request,db,user,refs,env,path,method,body}){
     if(method==='GET')return respond({complaint:row,messages:await db.all('complaint_messages',{complaint_id:'eq.'+row.id,order:'created_at.asc'})});
     if(method==='POST'&&complaint[2]){const input=await body();return respond(one(await db.insert('complaint_messages',{complaint_id:row.id,author_id:user.id,message:required(input.message,'message',1,4000)})),201)}
     if(method==='PATCH'&&!complaint[2]){
-      check(has(user,'teacher','department_head'));const input=await body(),status=pick(input.status,['under_review','resolved','rejected'],'statut');
+      check(row.manageable&&has(user,'teacher','department_head'));const input=await body(),status=pick(input.status,['under_review','resolved','rejected'],'statut');
       const allowed={submitted:['under_review','rejected'],under_review:['resolved','rejected'],resolved:[],rejected:[]};
       check(allowed[row.status]?.includes(status),'Cette transition de statut n’est pas autorisée.',409);
       const note=required(input.resolution_note,'réponse',3,4000);

@@ -121,3 +121,5 @@ Les erreurs techniques détaillées restent dans le diagnostic local. Les répon
 ## 7. Limites des vérifications automatisées
 
 Les tests reproduisent les tables MVP1 inspectées et exécutent les vraies fonctions complémentaires dans PostgreSQL embarqué (PGlite). Supabase Auth et le transport PostgREST sont simulés dans ces tests. La commande `check:supabase`, puis un essai avec vos vrais comptes, restent nécessaires pour valider votre projet réel.
+
+Les comptes du personnel utilisent les rôles et affectations existants : [guide Enseignant et Organisateur](ESPACES_PERSONNELS.md). Aucune nouvelle migration SQL n’est nécessaire pour ces espaces.

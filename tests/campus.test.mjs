@@ -246,3 +246,39 @@ test('public news also supports the original schema without an optional category
     const detail=await call('/public/news/'+publicIds.undated,'GET',undefined,'anonymous');assert.equal(detail.status,200);assert.equal(detail.data.news.category,'campus');
   }finally{await pg.exec('ROLLBACK;')}
 });
+
+test('teaching workspaces include cross-program assignments and isolate current schedules by teacher or department',async()=>{
+  const moduleId=uid(800),roomId=uid(801),currentId=uid(802),otherId=uid(803),oldId=uid(804);
+  await pg.query("INSERT INTO modules(id,code,title,semester_id,responsible_teacher_id) VALUES($1,'STAT','Statistiques appliquées',$2,$3)",[moduleId,ids.semester,people.teacher]);
+  await pg.query("INSERT INTO program_modules(program_id,module_id,academic_year) VALUES($1,$2,'2026-2027')",[ids.otherProgram,moduleId]);
+  await pg.query("INSERT INTO classrooms(id,name,building) VALUES($1,'B12','Bâtiment B')",[roomId]);
+  for(const [id,program,current]of [[currentId,ids.program,true],[otherId,ids.otherProgram,true],[oldId,ids.program,false]])await pg.query("INSERT INTO timetables(id,program_id,semester_id,academic_year,title,is_current) VALUES($1,$2,$3,'2026-2027','EDT de test',$4)",[id,program,ids.semester,current]);
+  for(const [timetable,module,teacher,day]of [[currentId,ids.module,people.teacher,1],[currentId,ids.module,people.otherTeacher,2],[currentId,ids.module,null,3],[otherId,moduleId,people.teacher,4],[otherId,ids.otherModule,people.otherTeacher,5],[oldId,moduleId,people.teacher,6]])await pg.query("INSERT INTO timetable_sessions(timetable_id,module_id,teacher_id,classroom_id,weekday,starts_at,ends_at,session_type) VALUES($1,$2,$3,$4,$5,'09:00','11:00','lecture')",[timetable,module,teacher,roomId,day]);
+  try{
+    const teacher=await call('/campus','GET',undefined,'teacher');assert.equal(teacher.status,200,JSON.stringify(teacher.data));const data=teacher.data.teaching;
+    assert.deepEqual(new Set(data.modules.map(m=>m.id)),new Set([ids.module,moduleId]));assert.ok(data.modules.every(m=>m.writable));assert.deepEqual(new Set(data.programs.map(p=>p.id)),new Set(['SIIA','SCI']));
+    assert.deepEqual(data.schedule.map(s=>s.day),[0,2,3]);assert.ok(data.schedule.every(s=>s.teacher==='teacher Test'));assert.match(data.schedule[0].room,/B12/);
+    const head=(await call('/campus','GET',undefined,'head')).data.teaching;assert.ok(head.schedule.every(s=>s.program==='SIIA'));assert.deepEqual(head.schedule.map(s=>s.day),[0,1,2]);
+    assert.equal((await call('/campus')).data.teaching,null);
+    assert.equal((await call('/documents','POST',{module_id:moduleId,file_id:uid(999),title:'Document sans fichier autorisé',document_type:'course'},'otherTeacher')).status,403);
+  }finally{
+    await pg.query('DELETE FROM timetable_sessions WHERE timetable_id=ANY($1::uuid[])',[[currentId,otherId,oldId]]);await pg.query('DELETE FROM timetables WHERE id=ANY($1::uuid[])',[[currentId,otherId,oldId]]);await pg.query('DELETE FROM program_modules WHERE module_id=$1',[moduleId]);await pg.query('DELETE FROM modules WHERE id=$1',[moduleId]);await pg.query('DELETE FROM classrooms WHERE id=$1',[roomId]);
+  }
+});
+
+test('staff can treat assigned complaints but a teacher-student cannot self-authorize handling a personal complaint',async()=>{
+  const created=await call('/complaints','POST',{subject:'Réclamation pédagogique assignée',description:'Le document pédagogique doit être corrigé.',complaint_type:'pedagogical',module_id:ids.module,assigned_to:people.otherTeacher});
+  assert.equal(created.status,201);assert.equal(created.data.assigned_to,people.teacher);const path='/complaints/'+created.data.id;
+  assert.equal((await call(path,'GET',undefined,'teacher')).data.complaint.manageable,true);
+  assert.equal((await call(path)).data.complaint.manageable,false);
+  assert.equal((await call(path,'PATCH',{status:'under_review',resolution_note:'Je prends en charge la correction.'},'teacher')).status,200);
+  assert.equal((await call(path,'GET',undefined,'otherTeacher')).status,403);
+  for(const actor of ['teacher','head']){
+    await pg.query('INSERT INTO user_roles(user_id,role_id) VALUES($1,1)',[people[actor]]);
+    try{
+      const own=await call('/complaints','POST',{subject:'Mon problème personnel',description:'Une demande personnelle à faire traiter.',complaint_type:'pedagogical',module_id:ids.module},actor);assert.equal(own.status,201);
+      const mine='/complaints/'+own.data.id;assert.equal((await call(mine,'GET',undefined,actor)).data.complaint.manageable,false);
+      assert.equal((await call(mine,'PATCH',{status:'under_review',resolution_note:'Tentative de prise en charge personnelle.',manageable:true},actor)).status,403);
+    }finally{await pg.query('DELETE FROM user_roles WHERE user_id=$1 AND role_id=1',[people[actor]])}
+  }
+});

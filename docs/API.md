@@ -38,6 +38,8 @@ La publication est définie par le statut `published` et une date atteinte (`pub
 
 `GET /campus` exige un compte actif. Il fournit uniquement les collections accessibles : `modules`, `announcements`, `documents`, `library`, `complaints`, `news`, `lost`, `spaces`, `resources`, `locations`, `listings`, `categories`, `transactions`, `recommendations`. Les modules comportent `writable`, les espaces `joined` et `memberCount`.
 
+`teaching` est `null` pour un compte sans rôle pédagogique. Pour un enseignant, chef de département ou administrateur, il contient `programs`, `semesters`, `modules` et `schedule`, limités aux affectations et au périmètre autorisés. Les séances proviennent uniquement des EDT courants ; les cours d’un enseignant explicitement différent sont exclus de l’EDT personnel, et le chef voit les séances de son département.
+
 `unavailable` identifie les tables absentes lors d’un déploiement incomplet. Une erreur de transport ou de permissions n’est pas convertie silencieusement en collection vide. Appliquer les migrations avant la recette complète.
 
 ## Pédagogie, ressources et fichiers — F02, F04, F06
@@ -64,6 +66,8 @@ Un upload isolé reste privé. Il devient téléchargeable par d’autres compte
 | `POST /complaints/:id/messages` | `{message}`. Compte autorisé sur la réclamation. |
 | `PATCH /complaints/:id` | `{status,resolution_note}`. Personnel autorisé ; `submitted → under_review/rejected`, `under_review → resolved/rejected`. Les états terminaux ne sont pas réouverts par cette route. |
 
+Une réclamation pédagogique avec module est affectée au responsable du module s’il s’agit d’un autre compte actif possédant un rôle pédagogique autorisé. `assigned_to` envoyé par le navigateur est ignoré. Les dossiers lisibles comportent `manageable`, calculé par le serveur : être auteur d’une réclamation ne suffit pas à pouvoir la traiter, même pour un compte multirôle.
+
 ## Événements — F03
 
 | Méthode et chemin | Corps / droits |
@@ -75,6 +79,8 @@ Un upload isolé reste privé. Il devient téléchargeable par d’autres compte
 | `GET /events/:id/participants` | Organisateur propriétaire ou administrateur seulement. |
 
 Les dates/heures de formulaire suivent `Africa/Casablanca`. `capacity:null` signifie absence de limite. `programs:[]` ouvre l’événement à toutes les filières.
+
+L’interface relit les participants toutes les 5 secondes pendant l’ouverture de leur fenêtre. Chaque requête revérifie la session, les rôles et la propriété de l’événement. Les réponses restent sans cache ; aucune clé Supabase ni aucun jeton ne sont transmis au JavaScript. Voir [les espaces du personnel](ESPACES_PERSONNELS.md).
 
 ## Communauté et services — F05, F06, F08
 

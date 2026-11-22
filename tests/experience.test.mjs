@@ -3,12 +3,13 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import fs from 'node:fs/promises';
 
+const spaces=await fs.readFile(new URL('../src/spaces.js',import.meta.url),'utf8');
 const core=await fs.readFile(new URL('../src/app.js',import.meta.url),'utf8'),experience=await fs.readFile(new URL('../src/experience.js',import.meta.url),'utf8'),theme=await fs.readFile(new URL('../src/theme.js',import.meta.url),'utf8');
 const user={id:'student-id',name:'Amine Test',role:'student',roles:['student'],program:'SIIA',semester:'S9'};
 const base={program:'SIIA',semester:'S9',semesterId:'semester-id',academicYear:'2026-2027',programs:[{id:'SIIA',uuid:'program-id',departmentId:'dept',name:'Systèmes intelligents',department:'Informatique',semester:'S9',head:'Responsable Test',initials:'RT',email:'department@example.test',office:'B12',hours:'Mardi'}],semesters:[{id:'semester-id',code:'S9',label:'Semestre 9'}],modules:[['DL','Deep Learning','Enseignant',4,'Apprendre les réseaux','DL']],schedule:[],events:[]};
 const articleId='20000000-0000-4000-8000-000000000001';
 const publicFixture={institution:{name:'Faculté Polydisciplinaire de Khouribga',university:'Université Sultan Moulay Slimane',city:'Khouribga, Maroc'},departments:[{code:'INFO',name:'Informatique',description:'Sciences informatiques.'}],programs:[{id:'SIIA',name:'Systèmes intelligents',department:'Informatique',description:'Parcours académique.'}],events:[],newsAvailable:true,news:[{id:articleId,title:'Actualité ouverte aux visiteurs',content:'Texte complet de la publication.\n\nInformations sur la vie du campus.',category:'campus',published_at:'2026-11-16T10:00:00Z',cover_url:'/api/public/news/'+articleId+'/cover'}]};
-async function context({signedIn=true,offline=false,recoveryValid=false,passwordStatus=200,hash=''}={}){
+async function context({signedIn=true,offline=false,recoveryValid=false,passwordStatus=200,hash='',account=user,workspace=null,eventRows=base.events}={}){
   const nodes=new Map(),handlers=[],calls=[];
   const get=id=>{if(!nodes.has(id))nodes.set(id,{innerHTML:'',textContent:'',classList:{add(){},remove(){},toggle(){}},focus(){},setSelectionRange(){}});return nodes.get(id)};
   const root={dataset:{},style:{}};
@@ -19,16 +20,16 @@ async function context({signedIn=true,offline=false,recoveryValid=false,password
     if(url.endsWith('/public'))return Response.json(structuredClone(publicFixture));
     if(url.includes('/public/news/'))return Response.json({news:structuredClone(publicFixture.news[0])});
     if(url.endsWith('/auth/options'))return Response.json({google:false});
-    if(url.endsWith('/auth/me'))return Response.json({user:signedIn?user:null});
-    if(url.includes('/bootstrap'))return Response.json({...structuredClone(base),user:signedIn?user:null});
-    if(url.endsWith('/campus'))return Response.json(vm.runInContext('emptyCampus()',ctx));
+    if(url.endsWith('/auth/me'))return Response.json({user:signedIn?account:null});
+    if(url.includes('/bootstrap'))return Response.json({...structuredClone(base),events:structuredClone(eventRows),user:signedIn?account:null});
+    if(url.endsWith('/campus'))return Response.json({...vm.runInContext('emptyCampus()',ctx),...structuredClone(workspace||{})});
     if(url.endsWith('/auth/recovery'))return Response.json({valid:recoveryValid});
     if(url.endsWith('/auth/recover'))return Response.json({message:'Si un compte correspond à cette adresse, un lien de réinitialisation vous sera envoyé.'});
     if(url.endsWith('/auth/password'))return passwordStatus===200?Response.json({ok:true,sessionsRevoked:true,message:'Votre mot de passe a été modifié. Connectez-vous avec le nouveau mot de passe.'}):Response.json({error:'Ce lien a expiré.'},{status:passwordStatus});
-    if(url.endsWith('/auth/login'))return Response.json({user});
+    if(url.endsWith('/auth/login'))return Response.json({user:account});
     return Response.json({ok:true});
   }});
-  vm.runInContext(theme,ctx);vm.runInContext(core,ctx);vm.runInContext(experience,ctx);await new Promise(resolve=>setTimeout(resolve,50));return{ctx,get,calls,handlers,location,root};
+  vm.runInContext(theme,ctx);vm.runInContext(core,ctx);vm.runInContext(spaces,ctx);vm.runInContext(experience,ctx);await new Promise(resolve=>setTimeout(resolve,50));return{ctx,get,calls,handlers,location,root};
 }
 
 test('public, account and academic screens share the theme without rerendering a form or calling the API',async()=>{
@@ -180,4 +181,46 @@ test('all application screens omit removed branding and out-of-scope entry point
   for(const page of ['about','programs']){
     vm.runInContext(`state.page='${page}';render()`,ctx);assert.equal(vm.runInContext('state.page',ctx),'landing');
   }
+});
+
+const staffUser={...user,id:'teacher-id',name:'Ahmed Maless',email:'a.maless@usms.ma',role:'teacher',roles:['teacher']};
+const teachingFixture={programs:[{id:'SIIA',uuid:'program-id',name:'Systèmes intelligents'},{id:'SCI',uuid:'science-id',name:'Sciences'}],semesters:[{id:'semester-id',label:'Semestre 9',academicYear:'2026-2027'}],modules:[{id:'module-id',code:'DL',title:'Deep Learning',programs:['SIIA'],semester_id:'semester-id',writable:true,weekly_hours:4},{id:'read-only',code:'SCI',title:'Statistiques',programs:['SCI'],semester_id:'semester-id',writable:false,weekly_hours:2}],schedule:[{moduleId:'module-id',program:'SIIA',semesterId:'semester-id',day:0,start:'09:00',end:'11:00',sessionDate:null,title:'Deep Learning',teacher:'Ahmed Maless',room:'B12',type:'Cours'}]};
+const staffWorkspace={teaching:teachingFixture,modules:teachingFixture.modules,complaints:[{id:'complaint-managed',subject:'Dossier à traiter',status:'submitted',manageable:true,student_id:'other-student',submitted_at:'2026-11-20'},{id:'complaint-own',subject:'Mon dossier personnel',status:'submitted',manageable:false,student_id:'teacher-id',submitted_at:'2026-11-20'}]};
+const ownedEvent={id:'event-owned',owner_id:'organizer-id',title:'Événement de mon espace',description:'Une rencontre du campus.',status:'published',date:'2030-12-01',starts_at:'2030-12-01T09:00:00Z',time:'09:00',endTime:'12:00',endDate:'2030-12-01',location:'Amphi A',category:'Conférence',registered:0,capacity:30,programs:[],targeted:false};
+
+test('teacher workspace shows assigned teaching, scoped publication forms and manageable complaints',async()=>{
+  const {ctx,get,handlers}=await context({account:staffUser,workspace:staffWorkspace,hash:'#teaching'});
+  assert.match(get('app').innerHTML,/ESPACE ENSEIGNANT/);assert.match(get('app').innerHTML,/Dossier à traiter/);assert.doesNotMatch(get('app').innerHTML,/Mon dossier personnel|href="#registrations"|Créer un événement/);assert.match(get('app').innerHTML,/Changer d’espace/);
+  vm.runInContext("state.page='teaching-modules';render()",ctx);assert.match(get('app').innerHTML,/Deep Learning/);assert.match(get('app').innerHTML,/Statistiques/);
+  const change=handlers.filter(h=>h.name==='change').at(-1).fn;change({target:{id:'staff-program',value:'SCI'}});assert.match(get('app').innerHTML,/Statistiques/);assert.doesNotMatch(get('app').innerHTML,/<h3>Deep Learning/);
+  change({target:{id:'staff-program',value:'all'}});await vm.runInContext("onAction('new-resource',{dataset:{kind:'announcement',parent:'module-id'}})",ctx);
+  assert.match(get('modal-root').innerHTML,/value="module-id" selected/);assert.doesNotMatch(get('modal-root').innerHTML,/value="read-only"/);
+  vm.runInContext("closeModal();state.page='teaching-schedule';render()",ctx);assert.match(get('app').innerHTML,/B12/);assert.match(get('app').innerHTML,/Ahmed Maless/);
+  vm.runInContext("state.page='complaints';render()",ctx);assert.match(get('app').innerHTML,/Réclamations à traiter/);assert.match(get('app').innerHTML,/Dossier à traiter/);assert.doesNotMatch(get('app').innerHTML,/Mon dossier personnel|Nouvelle réclamation/);
+});
+
+test('an organizer sees only manageable events and multi-role switching survives a workspace refresh',async()=>{
+  const account={...staffUser,id:'organizer-id',role:'organizer',roles:['teacher','organizer']};
+  const {ctx,get}=await context({account,workspace:staffWorkspace,eventRows:[ownedEvent,{...ownedEvent,id:'draft',title:'Mon brouillon',status:'draft'},{...ownedEvent,id:'foreign',owner_id:'another',title:'Événement étranger'}],hash:'#organizer'});
+  assert.match(get('app').innerHTML,/Créer un événement/);assert.match(get('app').innerHTML,/Publier une actualité/);assert.match(get('app').innerHTML,/Mon brouillon/);assert.doesNotMatch(get('app').innerHTML,/Événement étranger|href="#registrations"/);
+  await vm.runInContext("onAction('set-tab',{dataset:{group:'organizer-status',value:'draft'}})",ctx);assert.match(get('app').innerHTML,/Mon brouillon/);assert.doesNotMatch(get('app').innerHTML,/Événement de mon espace/);
+  vm.runInContext("state.page='choose-profile';render()",ctx);await vm.runInContext("onAction('select-role',{dataset:{value:'teacher'}});onAction('continue-role',{dataset:{}})",ctx);
+  assert.equal(vm.runInContext('state.page',ctx),'teaching');await vm.runInContext('refresh()',ctx);assert.equal(vm.runInContext('state.activeRole',ctx),'teacher');assert.match(get('app').innerHTML,/Publier une annonce/);
+  let savedSpace;ctx.window.sessionStorage={getItem:()=>savedSpace,setItem(key,value){savedSpace=value}};
+  vm.runInContext("rememberSpace('teacher');state.activeRole=''",ctx);assert.equal(vm.runInContext('spaceRole()',ctx),'teacher');
+  vm.runInContext("state.user.roles=['student'];state.user.role='student';state.page='teaching';render()",ctx);assert.match(get('app').innerHTML,/Cet espace est réservé/);assert.doesNotMatch(get('app').innerHTML,/Publier une annonce/);
+});
+
+test('participants refresh automatically, pause in a hidden tab, and stop on closure or revoked access',async()=>{
+  const account={...user,id:'organizer-id',role:'organizer',roles:['organizer']};
+  const {ctx,get,calls}=await context({account,eventRows:[ownedEvent],hash:'#organizer'}),pending=new Set();
+  ctx.setTimeout=(fn,ms)=>{assert.equal(ms,5000);pending.add(fn);return fn};ctx.clearTimeout=fn=>pending.delete(fn);
+  let count=0,revoked=false;ctx.fetch=async(url,options)=>{calls.push({url,options});if(revoked)return Response.json({error:'Accès refusé'},{status:403});return Response.json({participants:Array.from({length:++count},(_,i)=>({name:'Étudiant '+i,email:'prenom.nom@usms.ac.ma',program:'SIIA',created_at:'2026-11-20'}))})};
+  const tick=async()=>{const fn=[...pending][0];assert.ok(fn);pending.delete(fn);await fn()};
+  await vm.runInContext("participants('event-owned')",ctx);assert.match(get('modal-root').innerHTML,/5 secondes/);assert.equal(count,1);
+  await tick();assert.equal(count,2);assert.match(get('participants-count').textContent,/2 inscription/);
+  ctx.document.hidden=true;await tick();assert.equal(count,2);ctx.document.hidden=false;
+  await vm.runInContext("onAction('refresh-participants',{dataset:{id:'event-owned'}})",ctx);assert.equal(count,3);assert.equal(pending.size,1);
+  revoked=true;await tick();assert.match(get('participants-live').innerHTML,/interrompu/);assert.equal(pending.size,0);
+  revoked=false;await vm.runInContext("participants('event-owned')",ctx);assert.equal(pending.size,1);vm.runInContext('closeModal()',ctx);assert.equal(pending.size,0);
 });

@@ -78,6 +78,8 @@ Les fenêtres de détail, les tableaux, les états d’erreur, les documents, le
 
 Les informations proviennent de la base. Aucun compteur ou compte de démonstration n’est inventé. La mise en page s’adapte au mobile ; les contrôles restent accessibles au clavier et les contenus utilisateur sont échappés.
 
+Les tableaux de bord et les menus dédiés au personnel sont décrits dans [le guide des espaces Enseignant et Organisateur](ESPACES_PERSONNELS.md). Les actions pédagogiques suivent les affectations ; les organisateurs gèrent leurs propres événements et publient les actualités de vie étudiante.
+
 ## Configuration Supabase
 
 Conserver les migrations existantes : `20261111000100_existing_schema.sql` pour le socle et `20261116000100_campus_services.sql` pour les services. Elles restent applicables aux tables CampusConnect existantes. Les tables historiques de demandes et de notifications ne sont plus utilisées par les écrans ; elles sont préservées pour ne pas perdre d’anciennes données.
@@ -129,7 +131,7 @@ Les suggestions actuelles sont calculées par correspondance avec les modules (`
 - Un contributeur rejoint un projet avant de poster. Une ressource de bibliothèque privée ne peut pas être diffusée par son simple identifiant.
 - L’acceptation des demandes Marketplace est transactionnelle et verrouille l’offre : une seule demande peut être acceptée. La clôture conserve les transactions.
 - Aucun centre de notifications ni demande d’accès aux profils n’est exposé. Les rôles restent attribués par l’établissement.
-- La liste des participants se recharge après les actions et avec « Actualiser la liste ». Aucun abonnement temps réel Supabase n’est configuré.
+- La liste des participants se recharge automatiquement toutes les 5 secondes pendant son ouverture, avec un contrôle serveur des droits à chaque lecture, et avec « Actualiser maintenant ». Aucun abonnement Supabase Realtime n’est configuré.
 - La carte est schématique. Elle ne prétend pas fournir un plan géographique officiel ni une navigation GPS.
 - Aucun paiement, billetterie ou livraison en ligne n’est ajouté.
 

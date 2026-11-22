@@ -8,6 +8,8 @@ Les contrats et droits des routes sont décrits dans [la documentation API](docs
 
 Le **mode sombre** anthracite et or est actif par défaut sur toutes les pages. Le bouton soleil/lune permet de revenir au mode clair. Le choix est mémorisé dans le navigateur, appliqué dès le chargement et synchronisé entre les onglets, sans recharger les formulaires. Aucune configuration Supabase supplémentaire n’est nécessaire.
 
+Les espaces **Enseignant / Chef de département** et **Organisateur** ont leurs tableaux de bord et menus. L’enseignant suit ses affectations et publications ; l’organisateur gère ses événements, leurs participants et les actualités. Voir [la configuration des comptes et la recette](docs/ESPACES_PERSONNELS.md). Les participants sont actualisés automatiquement toutes les 5 secondes pendant l’ouverture de leur liste.
+
 L’option **Mot de passe oublié ?** utilise les emails de Supabase Auth. Ajouter les URL de retour dans **Authentication → URL Configuration** avant les essais : [configuration et test de la récupération](docs/RECUPERATION_MOT_DE_PASSE.md). Aucune migration SQL supplémentaire n’est nécessaire pour cette option.
 
 Le bouton **Filtrer** des actualités ouvre les choix de catégorie et de recherche pour les visiteurs comme pour les membres.
@@ -59,10 +61,12 @@ Les données du campus viennent de votre base. Les anciens comptes de démonstra
 - `src/` : HTML, CSS et interactions du frontend.
 - `src/experience.js`, `src/experience.css` : navigation et écrans du cahier des charges.
 - `src/theme.js`, `src/theme.css` : thème sombre/clair, initialisation avant affichage et préférence locale.
+- `src/spaces.js`, `src/spaces.css` : tableaux de bord et suivi des participants pour les espaces de personnel.
 - `worker/api.mjs` : validation et contrôles d’accès.
 - `worker/auth.mjs` : cookies, validation des sessions et renouvellement.
 - `worker/recovery.mjs` : récupération par email et échange PKCE côté serveur.
 - `worker/campus.mjs` : services pédagogiques et communautaires, fichiers, accès et assistant.
+- `worker/teaching.mjs` : périmètre des modules et séances de l’enseignant ou du chef de département.
 - `worker/storage/supabase.mjs` : transport HTTP et opérations du schéma existant.
 - `worker/storage/catalog.mjs` : lecture et correspondance des données académiques et événementielles.
 - `worker/time.mjs` : conversion des horaires du Maroc.
