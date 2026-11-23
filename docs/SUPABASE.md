@@ -123,3 +123,9 @@ Les erreurs techniques détaillées restent dans le diagnostic local. Les répon
 Les tests reproduisent les tables MVP1 inspectées et exécutent les vraies fonctions complémentaires dans PostgreSQL embarqué (PGlite). Supabase Auth et le transport PostgREST sont simulés dans ces tests. La commande `check:supabase`, puis un essai avec vos vrais comptes, restent nécessaires pour valider votre projet réel.
 
 Les comptes du personnel utilisent les rôles et affectations existants : [guide Enseignant et Organisateur](ESPACES_PERSONNELS.md). Aucune nouvelle migration SQL n’est nécessaire pour ces espaces.
+
+## Publication d’actualités avec le schéma initial
+
+La colonne `news_posts.category` est facultative. Le backend la détecte avant la publication et l’omet lorsque la base utilise encore le schéma initial. Le formulaire affiche alors « Vie du campus » et les actualités restent publiables sans changer les tables. Le complément `20261116000100_campus_services.sql` ajoute cette colonne pour activer les catégories Recherche, Clubs et Partenaires.
+
+Si l’ancien formulaire renvoie « La requête Supabase a échoué », récupérer le correctif, reconstruire le Worker puis le redémarrer. L’erreur `PGRST204` concernant `news_posts.category` est corrigée par cette compatibilité ; aucune migration n’est nécessaire pour publier une actualité dans « Vie du campus ».

@@ -1,5 +1,6 @@
 import {ApiError} from './errors.mjs';
 import {teachingWorkspace} from './teaching.mjs';
+import {supportsNewsCategories} from './news-schema.mjs';
 
 const check=(condition,message='Cette action n’est pas autorisée.',status=403)=>{if(!condition)throw new ApiError(message,status)};
 const has=(user,...roles)=>user.roles.includes('admin')||roles.some(role=>user.roles.includes(role));
@@ -53,6 +54,7 @@ export async function readCampus(db,user,refs,includeEventSuggestions=false,incl
     recommendations:recommendations.filter(row=>(!row.expires_at||new Date(row.expires_at)>new Date())&&(row.target_type==='library_resource'&&readableLibrary.some(x=>x.id===row.target_id)||row.target_type==='shared_resource'&&readableResources.some(x=>x.id===row.target_id))),
     unavailable:[...new Set(unavailable)]
   };
+  result.newsCategories=!unavailable.includes('news_posts')&&await supportsNewsCategories(db);
   if(includeTeaching)result.teaching=await teachingWorkspace(db,user,refs,scope);
   const eventSuggestions=recommendations.filter(row=>row.target_type==='event'&&(!row.expires_at||new Date(row.expires_at)>new Date()));
   if(includeEventSuggestions&&eventSuggestions.length){
@@ -226,7 +228,12 @@ export async function handleCampus({request,db,user,refs,env,path,method,body}){
   if(path==='/news'&&method==='POST'){
     check(has(user,'teacher','department_head','organizer'));const input=await body(),file=await ownedFile(db,input.cover_file_id,user);
     check(!file||file.mime_type.startsWith('image/'),'Choisissez une image pour la couverture.',400);
-    return respond(one(await db.insert('news_posts',{author_id:user.id,title:required(input.title,'titre'),content:required(input.content,'contenu',20,12000),category:pick(input.category||'campus',['campus','research','clubs','partners'],'catégorie'),cover_file_id:file?.id||null,status:'published',published_at:now()})),201);
+    const category=pick(input.category||'campus',['campus','research','clubs','partners'],'catégorie');
+    const record={author_id:user.id,title:required(input.title,'titre'),content:required(input.content,'contenu',20,12000),cover_file_id:file?.id||null,status:'published',published_at:now()};
+    const categorized=await supportsNewsCategories(db);
+    if(categorized)record.category=category;
+    else check(category==='campus','Cette catégorie n’est pas disponible. Publiez dans « Vie du campus ».',409);
+    return respond(one(await db.insert('news_posts',record)),201);
   }
   if(path==='/lost-found'&&method==='POST'){
     const input=await body(),file=await ownedFile(db,input.image_file_id,user);check(!file||file.mime_type.startsWith('image/'),'Choisissez une image.',400);

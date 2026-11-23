@@ -1,5 +1,6 @@
 import {ApiError} from './errors.mjs';
 import {loadEvents} from './storage/catalog.mjs';
+import {supportsNewsCategories} from './news-schema.mjs';
 
 const uuid=value=>typeof value==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 const published=row=>row?.status==='published'&&Number.isFinite(Date.parse(row.published_at||row.created_at))&&Date.parse(row.published_at||row.created_at)<=Date.now();
@@ -52,7 +53,7 @@ export async function handlePublic(request,db,path){
     programs:programs.map(p=>({id:p.code,name:p.name,description:p.description||'',department:departments.find(d=>d.id===p.department_id)?.name||''})),
     events:safeEvents,
     news:rows.filter(published).sort((a,b)=>Date.parse(b.published_at||b.created_at)-Date.parse(a.published_at||a.created_at)).map(publicNews),
-    newsAvailable
+    newsAvailable,newsCategories:newsAvailable&&await supportsNewsCategories(db)
   });
   return request.method==='HEAD'?new Response(null,{status:response.status,headers:response.headers}):response;
 }

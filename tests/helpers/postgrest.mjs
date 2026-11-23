@@ -81,7 +81,9 @@ export function postgrestFixture(pg,accounts,extraTables=[]){
         const sort=order?' ORDER BY '+order.split(',').map(v=>{const [field,direction]=v.split('.');return identifier(field)+(direction==='desc'?' DESC':' ASC')}).join(','):'';
         const limit=url.searchParams.get('limit');if(limit&&!/^\d+$/.test(limit))throw Error('Invalid limit');
         const offset=url.searchParams.get('offset');if(offset&&!/^\d+$/.test(offset))throw Error('Invalid offset');
-        return Response.json(dateRows(await pg.query('SELECT * FROM public.'+identifier(path)+condition+sort+(limit?' LIMIT '+limit:'')+(offset?' OFFSET '+offset:''),params)));
+        const projection=url.searchParams.get('select')||'*';
+        const columns=projection==='*'?'*':projection.split(',').map(identifier).join(',');
+        return Response.json(dateRows(await pg.query('SELECT '+columns+' FROM public.'+identifier(path)+condition+sort+(limit?' LIMIT '+limit:'')+(offset?' OFFSET '+offset:''),params)));
       }
       if(method==='PATCH'){
         const set=Object.entries(body).map(([key,value])=>{params.push(value);return identifier(key)+'=$'+params.length});

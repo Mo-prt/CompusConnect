@@ -239,12 +239,24 @@ test('public information remains available when the optional news table is not c
   finally{globalThis.fetch=fixture}
 });
 
-test('public news also supports the original schema without an optional category column',async()=>{
-  await pg.exec('BEGIN; ALTER TABLE news_posts DROP COLUMN category;');
+test('legacy news supports publication and public reading without an optional category column',async()=>{
+  const snapshot=(await pg.query('SELECT id,category FROM news_posts')).rows;let createdId;
+  await pg.exec('ALTER TABLE news_posts DROP COLUMN category;');
   try{
-    const result=await call('/public','GET',undefined,'anonymous');assert.equal(result.status,200);assert.ok(result.data.news.length>0);assert.ok(result.data.news.every(row=>row.category==='campus'));
+    const result=await call('/public','GET',undefined,'anonymous');assert.equal(result.status,200);assert.equal(result.data.newsCategories,false);assert.ok(result.data.news.length>0);assert.ok(result.data.news.every(row=>row.category==='campus'));
     const detail=await call('/public/news/'+publicIds.undated,'GET',undefined,'anonymous');assert.equal(detail.status,200);assert.equal(detail.data.news.category,'campus');
-  }finally{await pg.exec('ROLLBACK;')}
+    assert.equal((await call('/campus','GET',undefined,'teacher')).data.newsCategories,false);
+    const news={title:'Publication avec le schéma initial',content:'Une actualité de vie étudiante publiée avec la structure existante.',category:'campus'};
+    assert.equal((await call('/news','POST',news)).status,403);
+    const created=await call('/news','POST',news,'teacher');assert.equal(created.status,201,JSON.stringify(created.data));createdId=created.data.id;
+    const publicArticle=await call('/public/news/'+createdId,'GET',undefined,'anonymous');assert.equal(publicArticle.status,200);assert.equal(publicArticle.data.news.category,'campus');
+    const count=(await pg.query('SELECT count(*)::int AS n FROM news_posts')).rows[0].n;
+    const unsupported=await call('/news','POST',{...news,category:'research'},'teacher');assert.equal(unsupported.status,409);assert.match(unsupported.data.error,/Vie du campus/);assert.equal((await pg.query('SELECT count(*)::int AS n FROM news_posts')).rows[0].n,count);
+  }finally{
+    if(createdId)await pg.query('DELETE FROM news_posts WHERE id=$1',[createdId]);
+    await pg.exec('ALTER TABLE news_posts ADD COLUMN category text;');
+    for(const row of snapshot)await pg.query('UPDATE news_posts SET category=$1 WHERE id=$2',[row.category,row.id]);
+  }
 });
 
 test('teaching workspaces include cross-program assignments and isolate current schedules by teacher or department',async()=>{

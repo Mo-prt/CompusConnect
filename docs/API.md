@@ -40,6 +40,8 @@ La publication est définie par le statut `published` et une date atteinte (`pub
 
 `teaching` est `null` pour un compte sans rôle pédagogique. Pour un enseignant, chef de département ou administrateur, il contient `programs`, `semesters`, `modules` et `schedule`, limités aux affectations et au périmètre autorisés. Les séances proviennent uniquement des EDT courants ; les cours d’un enseignant explicitement différent sont exclus de l’EDT personnel, et le chef voit les séances de son département.
 
+`newsCategories` indique si la colonne facultative de catégorie existe dans `news_posts`. Cette capacité est aussi renvoyée par `/public`. Avec le schéma initial, les actualités peuvent être publiées sans cette colonne et sont classées « Vie du campus ». Le formulaire et les filtres proposent seulement cette catégorie ; une requête ancienne visant une autre catégorie reçoit `409` avant toute insertion.
+
 `unavailable` identifie les tables absentes lors d’un déploiement incomplet. Une erreur de transport ou de permissions n’est pas convertie silencieusement en collection vide. Appliquer les migrations avant la recette complète.
 
 ## Pédagogie, ressources et fichiers — F02, F04, F06

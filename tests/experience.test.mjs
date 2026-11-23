@@ -137,6 +137,14 @@ test('news filters are behind one button and can be applied, edited and reset fo
   }
 });
 
+test('legacy news forms and filters only offer the category available in the database',async()=>{
+  const {ctx,get}=await context();
+  vm.runInContext("state.user={id:'teacher',name:'Enseignant',role:'teacher',roles:['teacher']};state.workspace.newsCategories=false;resourceForm('news')",ctx);
+  const form=get('modal-root').innerHTML;assert.match(form,/name="category" value="campus"/);assert.doesNotMatch(form,/select name="category"/);assert.match(form,/visibles par tous les visiteurs/);
+  vm.runInContext("closeModal();state.publicData.newsCategories=false;newsFilterForm('public-news')",ctx);
+  const filters=get('modal-root').innerHTML;assert.match(filters,/value="campus"/);assert.doesNotMatch(filters,/value="research"|value="clubs"|value="partners"/);
+});
+
 function recoveryForm(mode,values,get){return{id:'experience-auth',dataset:{mode},values,elements:{},querySelector(selector){return selector.includes('error')?get('test-error'):{disabled:false}}}}
 const submitEvent=form=>({target:form,preventDefault(){},stopImmediatePropagation(){}});
 
