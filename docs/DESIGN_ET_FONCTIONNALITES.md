@@ -19,7 +19,7 @@ Références : sections 4, 6, 8, 9, 10 et 15 du cahier des charges fourni. Les f
 
 ## Accueil public
 
-À la demande de l’équipe, l’accueil présente en premier les trois dernières actualités publiées avec leurs photos, leur date et un accès direct aux articles, à la place du grand visuel d’introduction. La présentation de la FPK, la photo de la faculté, les départements et filières restent accessibles dans « Découvrir la FPK ». La liste publique des actualités est filtrable et les événements publiés sont consultables. Aucune authentification n’est nécessaire pour ces informations. Le portail ne présente ni catalogue commercial de formations, ni admissions, recherche institutionnelle, carrières ou offres partenaires indépendantes du portail.
+À la demande de l’équipe, l’accueil présente le grand bandeau d’introduction avec la photo de la FPK, suivi immédiatement des trois dernières actualités publiées avec leurs photos, leur date et un accès direct aux articles. La présentation de la FPK, la photo de la faculté, les départements et filières restent accessibles dans « Découvrir la FPK ». La liste publique des actualités est filtrable et les événements publiés sont consultables. Aucune authentification n’est nécessaire pour ces informations. Le portail ne présente ni catalogue commercial de formations, ni admissions, recherche institutionnelle, carrières ou offres partenaires indépendantes du portail.
 
 Seuls les articles au statut `published` dont la date de publication est atteinte sont exposés. Pour une ancienne actualité sans date de publication, la date de création est utilisée. Les publications futures, brouillons et articles retirés sont exclus de la liste, du détail et des images publiques.
 

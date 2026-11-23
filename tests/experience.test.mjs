@@ -48,7 +48,7 @@ test('public, account and academic screens share the theme without rerendering a
 
 test('public landing stays usable when Supabase is offline and stays within the academic scope',async()=>{
   const {ctx,get}=await context({signedIn:false,offline:true});
-  assert.match(get('app').innerHTML,/Actualités du campus/);assert.match(get('app').innerHTML,/retry-public/);assert.match(get('app').innerHTML,/#register/);assert.doesNotMatch(get('app').innerHTML,/class="landing-hero"|class="news-briefing"/);
+  assert.match(get('app').innerHTML,/Le portail étudiant/);assert.match(get('app').innerHTML,/fpk-campus.jpg/);assert.match(get('app').innerHTML,/Actualités du campus/);assert.match(get('app').innerHTML,/retry-public/);assert.match(get('app').innerHTML,/#register/);assert.doesNotMatch(get('app').innerHTML,/class="news-briefing"/);
   vm.runInContext("state.page='login';render()",ctx);assert.match(get('app').innerHTML,/experience-auth/);assert.match(get('app').innerHTML,/#forgot-password/);assert.ok(!get('app').innerHTML.includes('remember'));assert.ok(!get('app').innerHTML.includes('Formations'));assert.ok(!get('app').innerHTML.includes('Continuer avec Google'));
 });
 
@@ -56,8 +56,10 @@ test('anonymous visitors can discover the campus, list news and read a complete 
   const {ctx,get,calls}=await context({signedIn:false});
   assert.match(get('app').innerHTML,/Actualités du campus/);assert.match(get('app').innerHTML,/Actualité ouverte aux visiteurs/);
   const landing=get('app').innerHTML,newsStart=landing.indexOf('class="landing-news"'),featured=landing.slice(newsStart,landing.indexOf('</section>',newsStart));
-  assert.ok(newsStart>=0&&newsStart<landing.indexOf('class="public-events"'));assert.doesNotMatch(landing,/class="landing-hero"|class="news-briefing"|public-news-preview/);
-  assert.match(featured,new RegExp('href="#news/'+articleId+'"'));assert.match(featured,new RegExp('src="/api/public/news/'+articleId+'/cover"'));assert.match(featured,/fetchpriority="high"/);assert.match(featured,/data-count="1"/);
+  const heroStart=landing.indexOf('class="landing-hero"'),heroEnd=landing.indexOf('</section>',heroStart);
+  assert.ok(heroStart>=0&&heroStart<newsStart&&newsStart<landing.indexOf('class="public-events"'));assert.match(landing.slice(heroEnd,newsStart),/^<\/section><section $/);assert.doesNotMatch(landing,/class="news-briefing"|public-news-preview/);
+  assert.equal((landing.match(/<h1[ >]/g)||[]).length,1);assert.match(featured,/<h2 id="landing-news-title">Actualités du campus<\/h2>/);
+  assert.match(featured,new RegExp('href="#news/'+articleId+'"'));assert.match(featured,new RegExp('src="/api/public/news/'+articleId+'/cover"'));assert.match(featured,/loading="lazy"/);assert.match(featured,/data-count="1"/);
   vm.runInContext("{const first=state.publicData.news[0];state.publicData.news=[first,...Array.from({length:4},(_,i)=>({...first,id:first.id.slice(0,-1)+(i+2),title:'Autre actualité '+(i+2),cover_url:i===0?null:first.cover_url}))];render()}",ctx);
   assert.equal((get('app').innerHTML.match(/class="landing-news-card"/g)||[]).length,3);assert.match(get('app').innerHTML,/landing-news-placeholder/);assert.match(get('app').innerHTML,/data-count="3"/);assert.doesNotMatch(get('app').innerHTML,/Autre actualité [45]/);
   vm.runInContext("state.publicData.news=[];render()",ctx);assert.match(get('app').innerHTML,/Aucune actualité publiée/);assert.doesNotMatch(get('app').innerHTML,/class="landing-news-card"/);
