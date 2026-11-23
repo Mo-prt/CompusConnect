@@ -14,7 +14,7 @@ L’option **Mot de passe oublié ?** utilise les emails de Supabase Auth. Ajout
 
 Le bouton **Filtrer** des actualités ouvre les choix de catégorie et de recherche pour les visiteurs comme pour les membres.
 
-L’accueil affiche aussi un bandeau **À la une** avant la grande photo de la faculté : les trois derniers titres publiés, leur date et un accès direct aux articles publics.
+L’accueil présente directement les **trois dernières actualités publiées avec leurs photos** : une publication principale et deux articles complémentaires, avec catégorie, date et lien vers l’article public. Cette présentation remplace le grand visuel d’introduction et s’adapte au nombre de publications, au mobile et aux deux thèmes. Les articles sans photo utilisent un fond graphique neutre.
 
 Les visiteurs sans compte peuvent consulter **Découvrir la FPK**, les départements et filières, les **actualités publiées avec leurs images**, et les événements. Les brouillons et publications futures restent exclus. L’espace académique, les documents et les services personnels exigent une connexion. Cette extension publique n’exige pas de nouvelle migration SQL. La publication d’actualités fonctionne aussi avec le schéma initial sans colonne de catégorie : les articles sont alors classés « Vie du campus ».
 
