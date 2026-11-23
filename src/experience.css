@@ -19,6 +19,24 @@ body{background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif}b
 
 .listing-card-image{display:block;width:100%;height:170px;object-fit:cover;margin-bottom:18px}
 
+/* Published campus news, visible immediately above the landing hero. */
+.news-briefing{display:flex;align-items:center;gap:24px;padding:16px 5%;background:var(--surface);border-bottom:1px solid var(--line)}
+.news-briefing h2{display:flex;align-items:center;gap:9px;flex-shrink:0;margin:0;color:var(--primary);font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1px}
+.news-briefing h2 svg{width:19px;height:19px}
+.news-brief-items{display:flex;flex:1;min-width:0;gap:18px;margin:0;padding:4px;list-style:none}
+.news-brief-items li{flex:1;min-width:0}
+.news-brief-items li+li{border-left:1px solid var(--line);padding-left:18px}
+.news-brief-item{display:grid;grid-template-columns:minmax(0,1fr) 18px;column-gap:10px;row-gap:3px;align-items:center;padding:4px 0;color:var(--ink);border-radius:5px}
+.news-brief-item time{grid-column:1;font-size:10px;color:var(--muted)}
+.news-brief-item>span{grid-column:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:12px;font-weight:600;line-height:1.5}
+.news-brief-item>svg{grid-column:2;grid-row:1/3;width:16px;height:16px;color:var(--primary)}
+.news-brief-item:hover>span{color:var(--primary);text-decoration:underline;text-underline-offset:3px}
+.news-brief-all{display:inline-flex;align-items:center;gap:7px;flex-shrink:0;font-size:11px;font-weight:600;color:var(--primary);white-space:nowrap}
+.news-brief-all svg{width:15px;height:15px}
+.news-brief-message{flex:1;margin:0;font-size:12px;color:var(--muted)}
+@media(max-width:1000px){.news-briefing{flex-wrap:wrap;gap:10px 20px;padding:14px 5%}.news-briefing h2{order:0}.news-brief-all{order:1;margin-left:auto}.news-brief-items,.news-brief-message{order:2;flex-basis:100%}.news-brief-message{padding-top:3px}}
+@media(max-width:600px){.news-brief-items{gap:12px;overflow-x:auto;scroll-snap-type:x proximity;overscroll-behavior-inline:contain;padding:5px 4px 10px}.news-brief-items li{flex:0 0 min(80vw,340px);scroll-snap-align:start;padding:0}.news-brief-items li+li{border-left:0;padding-left:0}.news-brief-item{padding:10px 12px;border:1px solid var(--line);border-radius:9px}.news-brief-item>span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;white-space:normal;overflow-wrap:anywhere}.news-briefing h2{font-size:11px}.news-brief-all{font-size:10px}}
+
 /* Accès visiteurs : informations et actualités publiques. */
 .public-mobile-nav{display:none}
 .public-shell>.public-content{width:100%;max-width:1240px;margin:0 auto;padding:42px 5% 65px}

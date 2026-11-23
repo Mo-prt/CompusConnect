@@ -55,6 +55,8 @@ test('public landing stays usable when Supabase is offline and stays within the 
 test('anonymous visitors can discover the campus, list news and read a complete article without private API calls',async()=>{
   const {ctx,get,calls}=await context({signedIn:false});
   assert.match(get('app').innerHTML,/Actualités du campus/);assert.match(get('app').innerHTML,/Actualité ouverte aux visiteurs/);
+  const landing=get('app').innerHTML,briefStart=landing.indexOf('class="news-briefing"'),brief=landing.slice(briefStart,landing.indexOf('</section>',briefStart));
+  assert.ok(briefStart>=0&&briefStart<landing.indexOf('class="landing-hero"'));assert.match(brief,/À la une/);assert.match(brief,new RegExp('href="#news/'+articleId+'"'));assert.match(brief,/Actualité ouverte aux visiteurs/);
   vm.runInContext("state.page='campus';render()",ctx);assert.match(get('app').innerHTML,/Informatique/);assert.match(get('app').innerHTML,/Systèmes intelligents/);assert.ok(!get('app').innerHTML.includes('class="sidebar"'));
   vm.runInContext("state.page='news';render()",ctx);assert.match(get('app').innerHTML,/Actualité ouverte aux visiteurs/);assert.match(get('app').innerHTML,/filter-news/);assert.ok(!get('app').innerHTML.includes('experience-auth'));
   vm.runInContext(`state.page='news/${articleId}';render()`,ctx);await new Promise(resolve=>setTimeout(resolve,25));
@@ -67,6 +69,7 @@ test('public news text is escaped and publishers are told that news will be visi
   const {ctx,get}=await context({signedIn:false});
   vm.runInContext(`state.publicData.news[0].title='<img src=x onerror=alert(1)>';state.page='news';render()`,ctx);
   assert.match(get('app').innerHTML,/&lt;img/);assert.ok(!get('app').innerHTML.includes('<img src=x'));
+  vm.runInContext("state.page='landing';render()",ctx);assert.match(get('app').innerHTML,/&lt;img/);assert.ok(!get('app').innerHTML.includes('<img src=x'));
   vm.runInContext("state.user={id:'teacher',role:'teacher',roles:['teacher'],name:'Enseignant',program:'SIIA'};resourceForm('news')",ctx);
   assert.match(get('modal-root').innerHTML,/visibles par tous les visiteurs, sans compte/);
 });
