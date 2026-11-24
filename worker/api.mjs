@@ -6,6 +6,7 @@ import {moroccoInstant} from './time.mjs';
 import {handleCampus} from './campus.mjs';
 import {handlePublic} from './public.mjs';
 import {handleRecovery} from './recovery.mjs';
+import {validateFormattedText} from '../shared/formatted-text.mjs';
 export {ApiError} from './errors.mjs';
 const must=(condition,message,status=400)=>{if(!condition)throw new ApiError(message,status)};
 const text=(value,max=200)=>typeof value==='string'?value.trim().slice(0,max):'';
@@ -17,7 +18,8 @@ const uuidList=ids=>'in.('+[...new Set(ids)].join(',')+')';
 const capacity=value=>value===''||value===null||value===undefined?null:Number(value);
 
 function eventFields(body,refs){
-  const e={title:text(body.title,160),description:text(body.description,6000),category:text(body.category,40),status:text(body.status,20)||'published',date:text(body.date,10),endDate:text(body.endDate,10)||text(body.date,10),time:text(body.time,5),endTime:text(body.endTime,5),location_text:text(body.location,160),capacity:capacity(body.capacity)};
+  let description;try{description=validateFormattedText(body.description,{min:20,label:'description'})}catch(error){throw new ApiError(error.message)}
+  const e={title:text(body.title,160),description,category:text(body.category,40),status:text(body.status,20)||'published',date:text(body.date,10),endDate:text(body.endDate,10)||text(body.date,10),time:text(body.time,5),endTime:text(body.endTime,5),location_text:text(body.location,160),capacity:capacity(body.capacity)};
   must(e.title.length>=5&&e.description.length>=20&&e.location_text.length>=3,'Complétez le titre, la description et le lieu.');
   must(['Conférence','Atelier','Compétition','Vie associative'].includes(e.category),'Catégorie invalide.');
   must(['draft','published'].includes(e.status),'Statut invalide.');

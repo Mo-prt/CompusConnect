@@ -32,6 +32,16 @@ Ces routes acceptent aussi `HEAD` et refusent les écritures (`405`). Elles ne l
 
 La publication est définie par le statut `published` et une date atteinte (`published_at`, ou `created_at` si aucune date de publication n’existe). Le formulaire interne indique explicitement la visibilité publique des articles et images.
 
+## Texte mis en forme
+
+Les chaînes `description` des événements, `body` des annonces et `content` des actualités acceptent toujours le texte brut existant. L’éditeur visuel utilise aussi un format versionné : préfixe `CCRT1` suivi d’un saut de ligne et d’un tableau JSON de nœuds. Par exemple : `[["p","Bonjour ",["strong","la classe"]],["ul",["li","Apporter un ordinateur"]]]`.
+
+Les nœuds autorisés sont `p`, `h3`, `strong`, `em`, `u`, `ul`, `ol`, `li`, `br` et `a`. Le lien est représenté par `["a","https://exemple.ma","Texte du lien"]` ; seules les URL HTTP(S) sans identifiants et les adresses `mailto:` valides sont admises. Les attributs HTML, scripts, images intégrées et styles libres ne font pas partie du format. Le collage conserve uniquement les éléments autorisés. Les images de couverture continuent à utiliser le champ de fichier prévu.
+
+`shared/formatted-text.mjs` assure la validation côté serveur et le rendu côté navigateur. Le rendu échappe tout texte ; le HTML brut déjà enregistré reste littéral. Les documents incorrects, trop profonds, trop volumineux et les messages sans texte suffisant donnent `400`, sans tronquer les données ni enregistrer une publication partielle. Le minimum de texte visible est de 20 caractères pour un événement ou une actualité, et de 10 pour une annonce. La limite stockée reste de 6 000 caractères, mise en forme comprise, pour les événements et annonces ; l’API des actualités conserve sa limite de 12 000, et l’éditeur des trois formulaires limite à 6 000.
+
+L’éditeur est compilé et servi localement à `/editor.js`, avant `/app.js` ; il ne charge aucun service externe. Les colonnes et fonctions SQL existantes sont conservées. Les exports calendrier, la recherche et les sources de l’assistant utilisent une représentation en texte simple, sans exposer le format JSON.
+
 ## Lecture de l’espace — F01 à F08
 
 `GET /bootstrap?program=<code>&semester=<UUID-ou-S9>` **exige un compte actif** et fournit les références, modules, EDT et événements du socle.

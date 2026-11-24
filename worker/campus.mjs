@@ -1,6 +1,7 @@
 import {ApiError} from './errors.mjs';
 import {teachingWorkspace} from './teaching.mjs';
 import {supportsNewsCategories} from './news-schema.mjs';
+import {validateFormattedText,formattedTextPlain} from '../shared/formatted-text.mjs';
 
 const check=(condition,message='Cette action n’est pas autorisée.',status=403)=>{if(!condition)throw new ApiError(message,status)};
 const has=(user,...roles)=>user.roles.includes('admin')||roles.some(role=>user.roles.includes(role));
@@ -108,7 +109,7 @@ async function upload(request,db,user){
 
 export function sourceDocuments(data){
   return [
-    ...data.announcements.map(x=>({id:x.id,type:'announcement',title:x.title,text:x.body,url:'#announcements'})),
+    ...data.announcements.map(x=>({id:x.id,type:'announcement',title:x.title,text:formattedTextPlain(x.body),url:'#announcements'})),
     ...data.modules.map(x=>({id:x.id,type:'module',title:x.title,text:[x.description,x.objectives].filter(Boolean).join(' '),url:'#modules'})),
     ...data.library.map(x=>({id:x.id,type:'library_resource',title:x.title,text:x.abstract||'',url:'#library'})),
     ...data.documents.map(x=>({id:x.id,type:'course_document',title:x.title,text:x.description||'',url:'#documents'}))
@@ -129,7 +130,7 @@ async function assistant(request,db,user,refs,env,input){
   const {bootstrap}=await import('./storage/catalog.mjs');
   const academic=await bootstrap(db,refs,user.program,null,user);
   const events=academic.events.filter(e=>e.status==='published'&&(!e.targeted||e.programs.includes(user.program)));
-  const sources=sourceDocuments(data).concat(events.map(e=>({id:e.id,type:'event',title:e.title,text:`${e.description} • ${e.date} à ${e.time} • ${e.location}`,url:'#events'})));
+  const sources=sourceDocuments(data).concat(events.map(e=>({id:e.id,type:'event',title:e.title,text:`${formattedTextPlain(e.description)} • ${e.date} à ${e.time} • ${e.location}`,url:'#events'})));
   const timetable=refs.timetables.find(t=>t.program_id===user.programId&&t.semester_id===academic.semesterId);
   if(timetable&&academic.schedule.length)sources.push({id:timetable.id,type:'timetable',title:'Emploi du temps '+user.program,text:academic.schedule.map(s=>`${['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'][s.day]} ${s.start}–${s.end} : ${s.title}, ${s.room}${s.sessionDate?' ('+s.sessionDate+')':''}`).join('\n'),url:'#schedule'});
   const matches=searchSources(question,sources);
@@ -177,7 +178,8 @@ export async function handleCampus({request,db,user,refs,env,path,method,body}){
     const module=scope.modules.find(m=>m.id===input.module_id);check(scope.canTeach(module),'Vous ne pouvez pas publier pour ce module.');
     const targetPrograms=scope.links.filter(l=>l.module_id===module.id).map(l=>l.program_id);
     check(targetPrograms.length,'Aucune filière n’est associée à ce module.',409);
-    const result=await db.rpc('campus_publish_announcement',{p_user_id:user.id,p_module_id:module.id,p_title:required(input.title,'titre'),p_body:required(input.body,'message',10,6000)});
+    let message;try{message=validateFormattedText(input.body,{min:10,label:'message'})}catch(error){throw new ApiError(error.message)}
+    const result=await db.rpc('campus_publish_announcement',{p_user_id:user.id,p_module_id:module.id,p_title:required(input.title,'titre'),p_body:message});
     check(result?.id,'La publication n’a pas été enregistrée.',502);return respond(result,201);
   }
   if(path==='/documents'&&method==='POST'){
@@ -229,7 +231,8 @@ export async function handleCampus({request,db,user,refs,env,path,method,body}){
     check(has(user,'teacher','department_head','organizer'));const input=await body(),file=await ownedFile(db,input.cover_file_id,user);
     check(!file||file.mime_type.startsWith('image/'),'Choisissez une image pour la couverture.',400);
     const category=pick(input.category||'campus',['campus','research','clubs','partners'],'catégorie');
-    const record={author_id:user.id,title:required(input.title,'titre'),content:required(input.content,'contenu',20,12000),cover_file_id:file?.id||null,status:'published',published_at:now()};
+    let content;try{content=validateFormattedText(input.content,{min:20,max:12000,label:'contenu'})}catch(error){throw new ApiError(error.message)}
+    const record={author_id:user.id,title:required(input.title,'titre'),content,cover_file_id:file?.id||null,status:'published',published_at:now()};
     const categorized=await supportsNewsCategories(db);
     if(categorized)record.category=category;
     else check(category==='campus','Cette catégorie n’est pas disponible. Publiez dans « Vie du campus ».',409);
@@ -325,7 +328,7 @@ export async function handleCampus({request,db,user,refs,env,path,method,body}){
   if(path==='/recommendations'&&method==='POST'){
     const data=await readCampus(db,user,refs),candidates=data.library.map(r=>({type:'library_resource',id:r.id,title:r.title,text:r.abstract||''})).concat(data.resources.map(r=>({type:'shared_resource',id:r.id,title:r.title,text:r.description||''})));
     const {loadEvents}=await import('./storage/catalog.mjs');
-    candidates.push(...(await loadEvents(db,refs,user)).filter(e=>e.status==='published'&&new Date(e.starts_at)>new Date()&&(!e.targeted||e.programs.includes(user.program))).map(e=>({type:'event',id:e.id,title:e.title,text:e.description})));
+    candidates.push(...(await loadEvents(db,refs,user)).filter(e=>e.status==='published'&&new Date(e.starts_at)>new Date()&&(!e.targeted||e.programs.includes(user.program))).map(e=>({type:'event',id:e.id,title:e.title,text:formattedTextPlain(e.description)})));
     const terms=words(data.modules.map(m=>m.title).join(' '));
     const selected=candidates.map(r=>({...r,score:terms.reduce((n,w)=>n+(words(r.title+' '+r.text).includes(w)?1:0),0)})).sort((a,b)=>b.score-a.score).slice(0,3);
     if(selected.length)await db.insert('recommendations',selected.map(r=>({user_id:user.id,target_type:r.type,target_id:r.id,score:r.score,explanation:r.score?'En lien avec les modules de votre parcours.':'À découvrir parmi les contenus auxquels vous avez accès.',algorithm_version:'content-rules-v1',expires_at:new Date(Date.now()+86400000).toISOString()})));

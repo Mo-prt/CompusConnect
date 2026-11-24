@@ -2,6 +2,8 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import fs from 'node:fs/promises';
+import {editorScript} from './helpers/editor-script.mjs';
+import {encodeFormattedText} from '../shared/formatted-text.mjs';
 
 const source=await fs.readFile(new URL('../src/app.js',import.meta.url),'utf8');
 const data={user:null,program:'DEMO-SIIA',semester:'S1',semesterId:'semester-id',academicYear:'2026-2027',demoEnabled:false,
@@ -17,7 +19,7 @@ async function context(hash=''){
   const document={getElementById:get,addEventListener(){},querySelector(){return null},querySelectorAll(){return[]},body:{classList:{add(){},remove(){}}}};
   const location=new URL('https://campus.test/'+hash),history={replaceState(a,b,path){location.href=new URL(path,location.origin).href}};
   const ctx=vm.createContext({document,window:{addEventListener(){},scrollTo(){}},location,history,console,setTimeout,clearTimeout,Date,Intl,URL,URLSearchParams,Blob,Response,fetch:async url=>Response.json(url.includes('/auth/me')?{user:null}:structuredClone(data))});
-  vm.runInContext(source,ctx);await new Promise(resolve=>setTimeout(resolve,30));return{ctx,get,location};
+  vm.runInContext(editorScript,ctx);vm.runInContext(source,ctx);await new Promise(resolve=>setTimeout(resolve,30));return{ctx,get,location};
 }
 
 test('frontend renders all pages with actual program codes and dynamic semester data',async()=>{
@@ -44,6 +46,16 @@ test('unlimited capacity and calendar export preserve existing UTC timestamps',a
   const {ctx,get}=await context();vm.runInContext("eventDetail('event-id')",ctx);assert.match(get('modal-root').innerHTML,/Sans limite de places/);assert.ok(!get('modal-root').innerHTML.includes('Infinity'));
   vm.runInContext("download=(value)=>{globalThis.calendar=value};calendarExport('event-id')",ctx);
   const ics=vm.runInContext('calendar',ctx);assert.match(ics,/DTSTART:20301120T090000Z\r\n/);assert.match(ics,/DTEND:20301120T120000Z\r\n/);
+});
+
+test('event descriptions render formatting, reopen in the editor, and export readable calendar text',async()=>{
+  const {ctx,get}=await context(),description=encodeFormattedText([['p','Un programme ',['strong','ouvert aux étudiants'],'.'],['ul',['li','Atelier du matin'],['li','Questions et échanges']]]);
+  vm.runInContext(`state.data.events[0].description=${JSON.stringify(description)};eventDetail('event-id')`,ctx);
+  assert.match(get('modal-root').innerHTML,/<strong>ouvert aux étudiants<\/strong>/);assert.doesNotMatch(get('modal-root').innerHTML,/CCRT1/);
+  vm.runInContext("state.user={id:'organizer-id',roles:['organizer'],name:'Organisateur'};eventForm('event-id')",ctx);
+  assert.match(get('modal-root').innerHTML,/data-rich-name="description"/);assert.match(get('modal-root').innerHTML,/<strong>ouvert aux étudiants<\/strong>/);
+  vm.runInContext("download=value=>{globalThis.calendar=value};calendarExport('event-id')",ctx);
+  const ics=vm.runInContext('calendar',ctx);assert.match(ics,/DESCRIPTION:Un programme ouvert aux étudiants\./);assert.doesNotMatch(ics,/CCRT1|<strong>/);
 });
 
 

@@ -5,6 +5,7 @@ import {PGlite} from '@electric-sql/pglite';
 import {handleApi} from '../worker/api.mjs';
 import {SupabaseStore} from '../worker/storage/supabase.mjs';
 import {postgrestFixture} from './helpers/postgrest.mjs';
+import {encodeFormattedText,richTextPrefix,renderFormattedText} from '../shared/formatted-text.mjs';
 
 const env={SUPABASE_URL:'https://example.supabase.co',SUPABASE_SECRET_KEY:'sb_secret_test_only'};
 const uid=n=>'00000000-0000-4000-8000-'+String(n).padStart(12,'0');
@@ -61,6 +62,16 @@ test('teachers publish atomically for their modules and other programs cannot re
 });
 
 let privateFile,privateResource;
+test('teacher announcements and public news retain rich messages with visible-text validation',async()=>{
+  const message=encodeFormattedText([['p','Bonjour, consultez ',['strong','le nouveau programme'],'.'],['ul',['li','Première séance'],['li','Travaux pratiques']]]);
+  const announcement=await call('/announcements','POST',{module_id:ids.module,title:'Programme détaillé',body:message},'teacher');assert.equal(announcement.status,201,JSON.stringify(announcement.data));
+  const loaded=(await call('/campus')).data.announcements.find(row=>row.id===announcement.data.id);assert.equal(loaded.body,message);assert.match(renderFormattedText(loaded.body),/<strong>le nouveau programme<\/strong>/);
+  const article=await call('/news','POST',{title:'Programme illustré',content:message,category:'campus'},'teacher');assert.equal(article.status,201,JSON.stringify(article.data));
+  assert.equal((await call('/public/news/'+article.data.id,'GET',undefined,'anonymous')).data.news.content,message);
+  const before=(await pg.query('SELECT count(*)::int n FROM announcements')).rows[0].n;
+  for(const body of [encodeFormattedText([['strong','']]),richTextPrefix+JSON.stringify([['script','message suffisamment long']]),'x'.repeat(6001)])assert.equal((await call('/announcements','POST',{module_id:ids.module,title:'Texte invalide',body},'teacher')).status,400);
+  assert.equal((await pg.query('SELECT count(*)::int n FROM announcements')).rows[0].n,before);
+});
 test('uploads validate bytes and downloads enforce the resource audience, including guessed file IDs',async()=>{
   const upload=await call('/uploads?name=cours.pdf','POST',new TextEncoder().encode('%PDF-1.7\nsource test'),'student',{'Content-Type':'application/pdf'});
   assert.equal(upload.status,201,JSON.stringify(upload.data));privateFile=upload.data.file.id;

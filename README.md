@@ -14,6 +14,8 @@ L’option **Mot de passe oublié ?** utilise les emails de Supabase Auth. Ajout
 
 Le bouton **Filtrer** des actualités ouvre les choix de catégorie et de recherche pour les visiteurs comme pour les membres.
 
+Les formulaires d’**événement**, d’**annonce pédagogique** et d’**actualité** disposent d’un éditeur visuel : gras, italique, souligné, titres de paragraphe, listes, liens, annuler et rétablir. La mise en forme est conservée après publication et lors de la modification d’un événement. Les textes existants restent compatibles ; aucun complément SQL ni nouveau secret n’est nécessaire. Voir [le format des textes et sa validation](docs/API.md#texte-mis-en-forme).
+
 L’accueil conserve le **grand bandeau de présentation avec la photo de la FPK**, suivi immédiatement des **trois dernières actualités publiées avec leurs photos** : une publication principale et deux articles complémentaires, avec catégorie, date et lien vers l’article public. Cette présentation s’adapte au nombre de publications, au mobile et aux deux thèmes. Les articles sans photo utilisent un fond graphique neutre.
 
 Les visiteurs sans compte peuvent consulter **Découvrir la FPK**, les départements et filières, les **actualités publiées avec leurs images**, et les événements. Les brouillons et publications futures restent exclus. L’espace académique, les documents et les services personnels exigent une connexion. Cette extension publique n’exige pas de nouvelle migration SQL. La publication d’actualités fonctionne aussi avec le schéma initial sans colonne de catégorie : les articles sont alors classés « Vie du campus ».

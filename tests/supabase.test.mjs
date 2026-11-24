@@ -6,6 +6,7 @@ import {handleApi} from '../worker/api.mjs';
 import {SupabaseStore} from '../worker/storage/supabase.mjs';
 import {moroccoInstant,moroccoParts} from '../worker/time.mjs';
 import {postgrestFixture} from './helpers/postgrest.mjs';
+import {encodeFormattedText,richTextPrefix} from '../shared/formatted-text.mjs';
 
 const env={SUPABASE_URL:'https://example.supabase.co/rest/v1/',SUPABASE_SECRET_KEY:'sb_secret_test_only'};
 const id=n=>'10000000-0000-4000-8000-'+String(n).padStart(12,'0');
@@ -140,6 +141,15 @@ test('anonymous and academic profiles cannot mutate organizer data or grant them
 });
 
 let eventId;
+test('event creation and editing preserve formatted descriptions and reject invalid formatting',async()=>{
+  const message=encodeFormattedText([['p','Présentation du ',['strong','programme de la journée'],'.'],['ul',['li','Atelier pratique'],['li','Questions des étudiants']]]);
+  const created=await call('/events','POST',fields({description:message}),organizer.cookie);assert.equal(created.status,201,JSON.stringify(created.data));
+  const stored=(await pg.query('SELECT description FROM events WHERE id=$1',[created.data.id])).rows[0].description;assert.equal(stored,message);
+  const changed=encodeFormattedText([['p','Un programme ',['em','mis à jour pour tous les étudiants'],'.']]);
+  assert.equal((await call('/events/'+created.data.id,'PUT',fields({description:changed}),organizer.cookie)).status,200);
+  const visible=(await call('/public')).data.events.find(e=>e.id===created.data.id);assert.equal(visible.description,changed);
+  for(const description of [encodeFormattedText([['p',['strong','']]]),richTextPrefix+JSON.stringify([['a','javascript:alert(1)','Un message suffisamment long pour être publié.']]),'x'.repeat(6001)])assert.equal((await call('/events','POST',fields({description}),organizer.cookie)).status,400);
+});
 test('organizers create timestamp-based events and multiple program targets transactionally',async()=>{
   assert.equal((await call('/events/'+ids.draft,'PUT',fields({status:'published'}),organizer.cookie)).status,200);
   assert.equal((await pg.query('SELECT status FROM public.events WHERE id=$1',[ids.draft])).rows[0].status,'published');

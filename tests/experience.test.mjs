@@ -2,6 +2,8 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import fs from 'node:fs/promises';
+import {editorScript} from './helpers/editor-script.mjs';
+import {encodeFormattedText} from '../shared/formatted-text.mjs';
 
 const spaces=await fs.readFile(new URL('../src/spaces.js',import.meta.url),'utf8');
 const core=await fs.readFile(new URL('../src/app.js',import.meta.url),'utf8'),experience=await fs.readFile(new URL('../src/experience.js',import.meta.url),'utf8'),theme=await fs.readFile(new URL('../src/theme.js',import.meta.url),'utf8');
@@ -29,7 +31,7 @@ async function context({signedIn=true,offline=false,recoveryValid=false,password
     if(url.endsWith('/auth/login'))return Response.json({user:account});
     return Response.json({ok:true});
   }});
-  vm.runInContext(theme,ctx);vm.runInContext(core,ctx);vm.runInContext(spaces,ctx);vm.runInContext(experience,ctx);await new Promise(resolve=>setTimeout(resolve,50));return{ctx,get,calls,handlers,location,root};
+  vm.runInContext(editorScript,ctx);vm.runInContext(theme,ctx);vm.runInContext(core,ctx);vm.runInContext(spaces,ctx);vm.runInContext(experience,ctx);await new Promise(resolve=>setTimeout(resolve,50));return{ctx,get,calls,handlers,location,root};
 }
 
 test('public, account and academic screens share the theme without rerendering a form or calling the API',async()=>{
@@ -79,6 +81,16 @@ test('public news text is escaped and publishers are told that news will be visi
   vm.runInContext("state.page='landing';render()",ctx);assert.match(get('app').innerHTML,/&lt;img/);assert.ok(!get('app').innerHTML.includes('<img src=x'));
   vm.runInContext("state.user={id:'teacher',role:'teacher',roles:['teacher'],name:'Enseignant',program:'SIIA'};resourceForm('news')",ctx);
   assert.match(get('modal-root').innerHTML,/visibles par tous les visiteurs, sans compte/);
+});
+
+test('teacher announcements and organizer news use the editor and render readable public previews',async()=>{
+  const {ctx,get}=await context(),message=encodeFormattedText([['p','Programme ',['strong','ouvert à tous les étudiants'],'.'],['ul',['li','Atelier'],['li','Échanges']]]);
+  vm.runInContext(`state.user={id:'teacher',roles:['teacher'],role:'teacher',name:'Professeur'};state.workspace.modules=[{id:'module-id',title:'Un module',writable:true}];state.workspace.announcements=[{id:'announcement-id',title:'Informations',body:${JSON.stringify(message)},published_at:'2026-11-24'}];resourceForm('announcement')`,ctx);
+  assert.match(get('modal-root').innerHTML,/data-rich-name="body"/);
+  await vm.runInContext("onAction('view-announcement',{dataset:{id:'announcement-id'}})",ctx);assert.match(get('modal-root').innerHTML,/<strong>ouvert à tous les étudiants<\/strong>/);assert.doesNotMatch(get('modal-root').innerHTML,/CCRT1/);
+  vm.runInContext("resourceForm('news')",ctx);assert.match(get('modal-root').innerHTML,/data-rich-name="content"/);
+  vm.runInContext(`state.publicData.news[0].content=${JSON.stringify(message)};state.page='landing';render()`,ctx);assert.match(get('app').innerHTML,/Programme ouvert à tous les étudiants/);assert.doesNotMatch(get('app').innerHTML,/CCRT1/);
+  vm.runInContext("state.newsDetail=state.publicData.news[0];state.page='news-detail';render()",ctx);assert.match(get('app').innerHTML,/<strong>ouvert à tous les étudiants<\/strong>/);
 });
 
 test('all sixteen-screen routes render with actual program data and no placeholder records',async()=>{
